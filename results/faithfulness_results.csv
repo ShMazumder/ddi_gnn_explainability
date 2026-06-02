@@ -1,0 +1,5 @@
+method,sufficiency,necessity,fidelity_plus,fidelity_minus,sparsity,num_evaluated
+attention,1.0,0.0,0.0,0.0,0.07936507936507935,10
+gnnexplainer,1.0,0.0,0.0,0.0,0.07936507936507935,10
+pgexplainer,1.0,0.0,0.0,0.0,0.07936507936507935,10
+kec,1.0,0.0,0.0,0.0,0.036904761904761905,10
