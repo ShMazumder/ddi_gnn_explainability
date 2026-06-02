@@ -22,7 +22,7 @@ def train():
         config = yaml.safe_load(f)
 
     graph_path = Path(config["data"]["graph_dir"]) / "hetero_data.pt"
-    data = torch.load(graph_path)
+    data = torch.load(graph_path, weights_only=False)
     num_drugs = data['drug'].num_nodes
     num_proteins = data['protein'].num_nodes
     edge_index = data['drug', 'ddi', 'drug'].edge_index
