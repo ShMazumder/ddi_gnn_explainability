@@ -24,11 +24,23 @@ def main():
     raw_dir = Path(config["data"]["raw_dir"])
     raw_dir.mkdir(parents=True, exist_ok=True)
 
-    # TWOSIDES (example URL from Tatonetti lab – check current link)
-    twosides_url = "https://tatonettilab.org/resources/TWOSIDES/TWOSIDES.csv"
+    # TWOSIDES (working S3 download link)
+    twosides_url = "https://tatonettilab-resources.s3.us-west-1.amazonaws.com/nsides/TWOSIDES.csv.gz"
+    twosides_gz = raw_dir / "TWOSIDES.csv.gz"
     twosides_dest = raw_dir / "TWOSIDES.csv"
     if not twosides_dest.exists():
-        download_file(twosides_url, twosides_dest)
+        if not twosides_gz.exists():
+            download_file(twosides_url, twosides_gz)
+        print(f"Extracting {twosides_gz} -> {twosides_dest}")
+        with gzip.open(twosides_gz, 'rb') as f_in:
+            with open(twosides_dest, 'wb') as f_out:
+                shutil.copyfileobj(f_in, f_out)
+
+    # DrugBank XML (working HuggingFace link)
+    drugbank_url = "https://huggingface.co/datasets/agenticx/DrugBank/resolve/main/drugbank_full_database.xml"
+    drugbank_dest = raw_dir / "drugbank.xml"
+    if not drugbank_dest.exists():
+        download_file(drugbank_url, drugbank_dest)
 
     # SIDER (MedDRA)
     sider_url = "http://sideeffects.embl.de/media/download/meddra_all_se.tsv.gz"
@@ -48,7 +60,7 @@ def main():
             with open(raw_dir / "9606.protein.links.v12.0.txt", 'wb') as f_out:
                 shutil.copyfileobj(f_in, f_out)
 
-    print("Download complete. Please manually place DrugBank XML file as data/raw/drugbank.xml")
+    print("Download complete. All datasets (TWOSIDES, SIDER, STRING, and DrugBank XML) have been downloaded successfully.")
 
 
 if __name__ == "__main__":
