@@ -29,11 +29,11 @@ def train():
     labels = data['drug', 'ddi', 'drug'].side_effect_label  # (num_pairs, num_side_effects)
 
     # Create homogeneous edge index (drugs + proteins)
-    # For simplicity, combine drug-protein and protein-protein edges
-    drug_protein_edges = data['drug', 'binds', 'protein'].edge_index
+    # Clone the indices to prevent in-place modification of original HeteroData object
+    drug_protein_edges = data['drug', 'binds', 'protein'].edge_index.clone()
     # Offset protein indices by num_drugs
     drug_protein_edges[1] += num_drugs
-    ppi_edges = data['protein', 'interacts', 'protein'].edge_index
+    ppi_edges = data['protein', 'interacts', 'protein'].edge_index.clone()
     ppi_edges[0] += num_drugs
     ppi_edges[1] += num_drugs
     hom_edge = torch.cat([drug_protein_edges, ppi_edges], dim=1)

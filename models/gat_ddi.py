@@ -20,19 +20,28 @@ class HeteroGATDDI(nn.Module):
         )
         self.dropout = dropout
 
-    def forward(self, x_dict, edge_index_homogeneous, num_drugs):
+    def forward(self, x_dict, edge_index_homogeneous, num_drugs, return_attention_weights=False):
         # x_dict: {'drug': None, 'protein': None} – we use embeddings
         drug_emb = self.drug_embed(torch.arange(num_drugs, device=next(self.parameters()).device))
-        protein_emb = self.protein_embed(torch.arange(x_dict['protein'].size(0), device=next(self.parameters()).device))
+        num_proteins = self.protein_embed.num_embeddings
+        protein_emb = self.protein_embed(torch.arange(num_proteins, device=next(self.parameters()).device))
         x = torch.cat([drug_emb, protein_emb], dim=0)
 
         x = F.dropout(x, p=self.dropout, training=self.training)
-        x = F.elu(self.gat1(x, edge_index_homogeneous))
-        x = F.dropout(x, p=self.dropout, training=self.training)
-        x = self.gat2(x, edge_index_homogeneous)
-
-        drug_out = x[:num_drugs]
-        return drug_out
+        
+        if return_attention_weights:
+            x, (_, alpha1) = self.gat1(x, edge_index_homogeneous, return_attention_weights=True)
+            x = F.elu(x)
+            x = F.dropout(x, p=self.dropout, training=self.training)
+            x, (_, alpha2) = self.gat2(x, edge_index_homogeneous, return_attention_weights=True)
+            drug_out = x[:num_drugs]
+            return drug_out, [alpha1, alpha2]
+        else:
+            x = F.elu(self.gat1(x, edge_index_homogeneous))
+            x = F.dropout(x, p=self.dropout, training=self.training)
+            x = self.gat2(x, edge_index_homogeneous)
+            drug_out = x[:num_drugs]
+            return drug_out
 
     def predict_side_effects(self, drug_embeddings, drug_pairs):
         emb_i = drug_embeddings[drug_pairs[:, 0]]

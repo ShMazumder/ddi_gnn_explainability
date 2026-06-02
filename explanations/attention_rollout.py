@@ -11,30 +11,12 @@ from tqdm import tqdm
 
 
 def get_attention_weights(model, edge_index, num_drugs, device):
-    """Extract attention weights from each GAT layer via forward hooks."""
-    attention_weights = []
-
-    def hook_fn(module, input, output):
-        # GATConv returns (out, (edge_index, alpha)) when return_attention_weights is set
-        if isinstance(output, tuple) and len(output) == 2:
-            _, (_, alpha) = output
-            attention_weights.append(alpha.detach())
-
-    # Register hooks on GAT layers
-    hooks = []
-    for name, module in model.named_modules():
-        if hasattr(module, '_alpha'):  # GATConv stores attention in _alpha
-            hooks.append(module.register_forward_hook(hook_fn))
-
-    # Forward pass to capture attention
+    """Extract attention weights from each GAT layer."""
     with torch.no_grad():
-        model.forward({'drug': None, 'protein': None}, edge_index, num_drugs)
-
-    # Remove hooks
-    for h in hooks:
-        h.remove()
-
-    return attention_weights
+        _, attention_weights = model.forward(
+            {'drug': None, 'protein': None}, edge_index, num_drugs, return_attention_weights=True
+        )
+    return [alpha.detach() for alpha in attention_weights]
 
 
 def compute_rollout(attention_weights, edge_index, num_nodes):

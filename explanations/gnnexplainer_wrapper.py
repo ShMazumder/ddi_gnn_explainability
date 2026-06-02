@@ -49,21 +49,46 @@ def run_gnnexplainer(model, edge_index, num_drugs, sample_pairs, device):
                 drug_emb = model.forward({'drug': None, 'protein': None}, edge_index, num_drugs)
                 target_pred = model.predict_side_effects(drug_emb, sample_pairs[i:i+1].to(device))
 
-            # Optimise edge mask
+            # Optimise edge mask using REINFORCE policy gradient
+            baseline = 0.0
             for epoch in range(100):
                 optimizer.zero_grad()
                 sigmoid_mask = torch.sigmoid(edge_mask)
-                masked_edge_index = edge_index  # keep all edges but weight them
-
-                # Forward with masked edges (approximate by dropout)
-                drug_emb = model.forward({'drug': None, 'protein': None}, edge_index, num_drugs)
+                
+                # Sample binary mask stochastically
+                dist = torch.distributions.Bernoulli(sigmoid_mask)
+                sampled_mask = dist.sample()
+                log_probs = dist.log_prob(sampled_mask).sum()
+                
+                # Ensure we keep at least a few edges (stochastic fallback)
+                if sampled_mask.sum() == 0:
+                    sampled_mask[torch.randint(0, len(sampled_mask), (5,))] = 1.0
+                
+                # Run forward pass with sampled edges
+                masked_edge_index = edge_index[:, sampled_mask > 0.5]
+                
+                # Forward with masked edges
+                drug_emb = model.forward({'drug': None, 'protein': None}, masked_edge_index, num_drugs)
                 pred = model.predict_side_effects(drug_emb, sample_pairs[i:i+1].to(device))
-
-                # Loss: prediction fidelity + sparsity
+                
+                # Loss: prediction fidelity
                 pred_loss = torch.nn.functional.mse_loss(pred, target_pred.detach())
+                
+                # Update running baseline
+                if epoch == 0:
+                    baseline = pred_loss.item()
+                else:
+                    baseline = 0.95 * baseline + 0.05 * pred_loss.item()
+                
+                # Policy gradient loss (REINFORCE)
+                advantage = pred_loss.item() - baseline
+                policy_loss = advantage * log_probs
+                
+                # Size and entropy regularisation
                 size_loss = sigmoid_mask.sum() * 0.01
                 entropy_loss = -sigmoid_mask * torch.log(sigmoid_mask + 1e-8) - (1 - sigmoid_mask) * torch.log(1 - sigmoid_mask + 1e-8)
-                loss = pred_loss + size_loss + entropy_loss.mean() * 0.1
+                
+                loss = policy_loss + size_loss + entropy_loss.mean() * 0.1
                 loss.backward()
                 optimizer.step()
 

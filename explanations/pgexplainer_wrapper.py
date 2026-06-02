@@ -55,39 +55,55 @@ def train_pgexplainer(model, edge_index, num_drugs, train_pairs, device, epochs=
 
     src, dst = edge_index
 
+    # Vectorised PGExplainer training using REINFORCE
+    baseline = 0.0
     for epoch in range(epochs):
         pg_model.train()
         optimizer.zero_grad()
 
-        # Predict edge importance
+        # Predict edge importance probabilities
         edge_logits = pg_model(node_emb[src], node_emb[dst])
         edge_probs = torch.sigmoid(edge_logits)
 
-        # Sample edges using Gumbel-Softmax (straight-through)
-        temperature = max(0.5, 5.0 * (1 - epoch / epochs))
-        edge_weights = torch.sigmoid(edge_logits / temperature)
+        # Sample binary mask stochastically
+        dist = torch.distributions.Bernoulli(edge_probs)
+        sampled_mask = dist.sample()
+        log_probs = dist.log_prob(sampled_mask).sum()
 
-        # Compute loss over training pairs
-        total_loss = 0.0
-        for pair in train_pairs[:min(50, len(train_pairs))]:
-            d1, d2 = pair.tolist()
+        # Ensure we keep at least a few edges
+        if sampled_mask.sum() == 0:
+            sampled_mask[torch.randint(0, len(sampled_mask), (5,))] = 1.0
 
-            # Target prediction (full graph)
-            with torch.no_grad():
-                target_pred = model.predict_side_effects(drug_emb, pair.unsqueeze(0).to(device))
+        # Masked forward pass
+        masked_edge_index = edge_index[:, sampled_mask > 0.5]
+        drug_emb_masked = model.forward({'drug': None, 'protein': None}, masked_edge_index, num_drugs)
 
-            # Masked prediction (approximate)
-            masked_pred = model.predict_side_effects(drug_emb, pair.unsqueeze(0).to(device))
+        # Predict DDI on full and masked graphs
+        train_pairs_tensor = train_pairs.to(device)
+        with torch.no_grad():
+            target_pred = model.predict_side_effects(drug_emb, train_pairs_tensor)
+        masked_pred = model.predict_side_effects(drug_emb_masked, train_pairs_tensor)
 
-            pred_loss = nn.functional.mse_loss(masked_pred, target_pred.detach())
-            sparsity_loss = edge_weights.mean() * 0.1
-            total_loss += pred_loss + sparsity_loss
+        # Loss: prediction fidelity
+        pred_loss = nn.functional.mse_loss(masked_pred, target_pred.detach())
 
+        # Update baseline
+        if epoch == 0:
+            baseline = pred_loss.item()
+        else:
+            baseline = 0.95 * baseline + 0.05 * pred_loss.item()
+
+        # REINFORCE loss + sparsity regularisation
+        advantage = pred_loss.item() - baseline
+        policy_loss = advantage * log_probs
+        sparsity_loss = edge_probs.mean() * 0.1
+
+        total_loss = policy_loss + sparsity_loss
         total_loss.backward()
         optimizer.step()
 
         if (epoch + 1) % 10 == 0:
-            print(f"  PGExplainer epoch {epoch+1}/{epochs} | Loss: {total_loss.item():.4f}")
+            print(f"  PGExplainer epoch {epoch+1}/{epochs} | Loss: {total_loss.item():.4f} | Fidelity Loss: {pred_loss.item():.4f}")
 
     return pg_model, node_emb
 
