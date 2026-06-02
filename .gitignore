@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Data files (large, not tracked)
+data/raw/*.xml
+data/raw/*.csv
+data/raw/*.tsv
+data/raw/*.gz
+data/raw/*.txt
+data/processed/
+data/graph/*.pt
+
+# Model checkpoints
+results/model_checkpoint.pt
+results/*.pt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/

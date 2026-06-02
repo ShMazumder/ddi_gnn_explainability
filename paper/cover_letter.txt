@@ -1,0 +1,16 @@
+Dear Editor,
+
+We submit our manuscript titled "Explainable Graph Neural Networks for Drug–Drug Interaction Prediction: A Faithfulness-Evaluated Study over Clinical Knowledge Graphs" for consideration.
+
+This work makes the following contributions:
+
+1. A heterogeneous GAT architecture for DDI prediction over a clinical knowledge graph integrating DrugBank, TWOSIDES, SIDER, and STRING.
+
+2. A systematic comparison of four explanation methods (Attention Rollout, GNNExplainer, PGExplainer, and a novel Knowledge-Enhanced Counterfactual approach) with rigorous faithfulness evaluation.
+
+3. A usability study with pharmacists assessing the clinical interpretability of GNN explanations.
+
+We believe this work addresses the critical gap between GNN predictive performance and clinical trust in DDI prediction systems.
+
+Sincerely,
+[Author Name]

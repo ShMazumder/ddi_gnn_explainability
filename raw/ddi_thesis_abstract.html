@@ -1,0 +1,115 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+.page { padding: 1.5rem 0; font-family: var(--font-sans); max-width: 640px; }
+.doc-header { margin-bottom: 20px; border-bottom: 1px solid var(--color-border-tertiary); padding-bottom: 16px; }
+.doc-title { font-size: 16px; font-weight: 500; color: var(--color-text-primary); line-height: 1.5; margin-bottom: 8px; }
+.meta-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.meta-tag { font-size: 11px; padding: 2px 8px; border-radius: 999px; }
+.t-purple { background: #EEEDFE; color: #3C3489; }
+.t-teal   { background: #E1F5EE; color: #085041; }
+.t-amber  { background: #FAEEDA; color: #412402; }
+.t-gray   { background: var(--color-background-primary); color: var(--color-text-secondary); border: 1px solid var(--color-border-secondary); }
+.abstract-body { font-size: 13.5px; color: var(--color-text-primary); line-height: 1.85; margin-bottom: 20px; }
+.abstract-body p { margin-bottom: 14px; }
+.abstract-body p:last-child { margin-bottom: 0; }
+.sentence-hl { background: #EEEDFE; border-radius: 2px; padding: 1px 2px; cursor: pointer; transition: background .15s; }
+.sentence-hl:hover { background: #CECBF6; }
+.section-label { display: inline-block; font-size: 10px; font-weight: 500; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: .05em; margin-right: 6px; vertical-align: middle; }
+.word-count { font-size: 12px; color: var(--color-text-tertiary); margin-bottom: 16px; }
+.kw-section { margin-bottom: 20px; }
+.kw-label { font-size: 11px; font-weight: 500; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
+.kw-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.kw { font-size: 12px; padding: 3px 10px; border: 1px solid var(--color-border-secondary); border-radius: 4px; color: var(--color-text-secondary); background: var(--color-background-secondary); }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid var(--color-border-tertiary); padding-top: 14px; }
+.btn { font-size: 12px; padding: 6px 12px; border-radius: var(--border-radius-md); border: none; cursor: pointer; font-family: var(--font-sans); transition: background .15s; }
+.btn-primary { background: #E1F5EE; color: #085041; }
+.btn-primary:hover { background: #9FE1CB; }
+.btn-secondary { background: var(--color-background-secondary); color: var(--color-text-secondary); border: 1px solid var(--color-border-secondary); }
+.btn-secondary:hover { background: var(--color-background-tertiary); }
+.tooltip { position: relative; display: inline; }
+.tooltip-text { display: none; position: absolute; bottom: 120%; left: 50%; transform: translateX(-50%); background: var(--color-background-primary); border: 1px solid var(--color-border-secondary); border-radius: var(--border-radius-md); padding: 6px 10px; font-size: 11px; color: var(--color-text-secondary); white-space: nowrap; z-index: 10; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.sentence-hl:hover .tooltip-text { display: block; }
+.copy-notice { font-size: 11px; color: #085041; display: none; margin-left: 8px; }
+</style>
+
+<div class="page">
+  <div class="doc-header">
+    <div class="doc-title">Explainable Graph Neural Networks for Drug–Drug Interaction Prediction: A Faithfulness-Evaluated Study over Clinical Knowledge Graphs</div>
+    <div class="meta-row">
+      <span class="meta-tag t-purple">Master's Thesis Abstract</span>
+      <span class="meta-tag t-teal">~300 words</span>
+      <span class="meta-tag t-gray">IMRaD structure</span>
+    </div>
+  </div>
+
+  <div class="abstract-body" id="abstract-text">
+    <p>
+      <span class="section-label">Background</span>
+      <span class="tooltip"><span class="sentence-hl" title="Background">Drug–drug interactions (DDIs) are a leading cause of preventable adverse drug reactions, posing significant risks in polypharmacy patients who concurrently use multiple medications.</span></span>
+      Recent advances in graph neural networks (GNNs) have enabled accurate prediction of polypharmacy side effects by modelling the complex relationships between drugs, protein targets, and adverse events as heterogeneous knowledge graphs.
+      <span class="tooltip"><span class="sentence-hl" title="Gap">Despite achieving high predictive performance, these models function as clinical black boxes — offering no mechanistic rationale for their predictions — thereby limiting their adoption in pharmacovigilance and clinical decision support.</span></span>
+    </p>
+    <p>
+      <span class="section-label">Objective</span>
+      This thesis presents the first systematic study of GNN explanation methods applied specifically to the DDI side effect prediction task.
+      We address three research questions: whether existing post-hoc explanation methods produce <em>faithful</em> subgraph explanations for heterogeneous DDI knowledge graphs; how these methods compare on quantitative faithfulness, stability, and pharmacological validity criteria; and whether the resulting explanations are interpretable and useful to pharmacists in practice.
+    </p>
+    <p>
+      <span class="section-label">Methods</span>
+      We construct a reproducible heterogeneous knowledge graph integrating DrugBank, TWOSIDES, SIDER, and STRING protein–protein interaction data, spanning 645 drugs, 964 polypharmacy side effect types, and 19,089 protein nodes.
+      A Graph Attention Network (GAT) is trained on this graph for multi-label side effect prediction, with Decagon as the primary baseline.
+      Four explanation methods — raw attention rollout, GNNExplainer, PGExplainer, and the k-hop Explanation with Convolutional Core (KEC) — are applied to 200 sampled drug pairs.
+      Faithfulness is evaluated using sufficiency and necessity perturbation tests; stability is assessed under repeated edge dropout.
+      Pharmacological validity is verified by cross-referencing highlighted protein nodes against known shared CYP450 enzyme targets in DrugBank.
+      Finally, a task-based usability study with pharmacy students examines whether the best-performing explanation supports correct mechanism identification.
+    </p>
+    <p>
+      <span class="section-label">Expected contributions</span>
+      This work provides: (1) a publicly released, leakage-free DDI knowledge graph pipeline; (2) the first faithfulness benchmark of GNN explanation methods for polypharmacy prediction; (3) evidence on whether raw attention constitutes a reliable explanation in this setting; and (4) qualitative findings from pharmacist evaluation of GNN-generated interaction explanations.
+      <span class="tooltip"><span class="sentence-hl">Results are expected to demonstrate that attention-based explanations are insufficiently faithful, that KEC outperforms perturbation-based methods on sufficiency, and that subgraph explanations grounded in shared protein targets are interpretable to domain experts.</span></span>
+      These findings will inform the design of trustworthy, clinically deployable DDI prediction systems.
+    </p>
+  </div>
+
+  <div class="word-count" id="wc">Word count: calculating…</div>
+
+  <div class="kw-section">
+    <div class="kw-label">Keywords</div>
+    <div class="kw-row">
+      <span class="kw">drug–drug interactions</span>
+      <span class="kw">knowledge graphs</span>
+      <span class="kw">graph neural networks</span>
+      <span class="kw">explainability</span>
+      <span class="kw">GNNExplainer</span>
+      <span class="kw">polypharmacy</span>
+      <span class="kw">faithfulness evaluation</span>
+      <span class="kw">pharmacovigilance</span>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-primary" onclick="copyAbstract()">Copy abstract</button>
+    <button class="btn btn-secondary" onclick="sendPrompt('Rewrite this DDI thesis abstract in a more concise 150-word version for a conference submission')">Shorten to 150 words</button>
+    <button class="btn btn-secondary" onclick="sendPrompt('Rewrite this DDI thesis abstract with a stronger clinical motivation opening paragraph')">Strengthen opening</button>
+    <button class="btn btn-secondary" onclick="sendPrompt('Generate 5 alternative thesis titles for this DDI GNN explainability work')">Alt. titles</button>
+    <span class="copy-notice" id="copy-notice">Copied!</span>
+  </div>
+</div>
+
+<script>
+function copyAbstract() {
+  const el = document.getElementById('abstract-text');
+  const text = el.innerText.replace(/Background|Objective|Methods|Expected contributions/g, '').replace(/\s+/g, ' ').trim();
+  navigator.clipboard.writeText(text).then(() => {
+    const n = document.getElementById('copy-notice');
+    n.style.display = 'inline';
+    setTimeout(() => n.style.display = 'none', 2000);
+  });
+}
+window.addEventListener('load', () => {
+  const text = document.getElementById('abstract-text').innerText;
+  const words = text.trim().split(/\s+/).filter(w => !/^(Background|Objective|Methods|Expected contributions)$/.test(w)).length;
+  document.getElementById('wc').textContent = 'Word count: ' + words + ' words';
+});
+</script>

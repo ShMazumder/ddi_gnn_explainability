@@ -1,0 +1,5 @@
+participant_id,case_id,drugs,helpfulness_score,inferred_mechanism,comments
+P001,1,Warfarin + Aspirin,,,
+P001,2,,,
+P002,1,Warfarin + Aspirin,,,
+P002,2,,,

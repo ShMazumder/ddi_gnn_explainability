@@ -1,0 +1,29 @@
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  graph_dir: "data/graph"
+  drugbank_xml: "data/raw/drugbank.xml"   # user must place this file
+  twosides_csv: "data/raw/TWOSIDES.csv"
+  sider_tsv: "data/raw/sider.tsv"
+  string_links: "data/raw/9606.protein.links.v12.0.txt"
+  string_mapping: "data/raw/protein.aliases.v12.0.txt"
+
+model:
+  drug_hidden: 128
+  protein_hidden: 128
+  gat_heads: 4
+  gat_layers: 2
+  dropout: 0.2
+  learning_rate: 0.001
+  epochs: 100
+  batch_size: 256
+
+explanation:
+  num_pairs: 200
+  k_hop: 2
+  methods: ["attention", "gnnexplainer", "pgexplainer", "kec"]
+  faithfulness_samples: 10
+
+usability:
+  num_participants: 8
+  survey_output: "usability/survey_results.csv"

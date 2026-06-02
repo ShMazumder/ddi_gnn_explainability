@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head><title>DDI Explanation Usability Study</title></head>
+<body>
+<h1>DDI Prediction Explanation Study</h1>
+<form id="survey">
+  <div id="questions"></div>
+  <button type="submit">Submit</button>
+</form>
+<script>
+  const cases = [
+    {drugs: "Warfarin + Aspirin", prediction: "Bleeding", explanation: "Both affect platelet aggregation..."},
+    // add 10 cases
+  ];
+  const container = document.getElementById('questions');
+  cases.forEach((c, i) => {
+    container.innerHTML += `
+      <fieldset>
+        <legend>Case ${i+1}: ${c.drugs}</legend>
+        <p>Prediction: ${c.prediction}</p>
+        <p>Explanation: ${c.explanation}</p>
+        <label>Does the explanation help? (1-5): <input name="q${i}_help" type="number" min="1" max="5"></label><br>
+        <label>What mechanism do you infer? <input name="q${i}_mech" size="50"></label>
+      </fieldset>`;
+  });
+  document.getElementById('survey').onsubmit = (e) => {
+    e.preventDefault();
+    alert("Responses saved (simulated)");
+  };
+</script>
+</body>
+</html>
