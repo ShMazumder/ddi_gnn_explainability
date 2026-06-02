@@ -31,12 +31,12 @@ class HeteroGATDDI(nn.Module):
         x = F.dropout(x, p=self.dropout, training=self.training)
         
         if return_attention_weights:
-            x, (_, alpha1) = self.gat1(x, edge_index_homogeneous, return_attention_weights=True)
+            x, (edge_idx1, alpha1) = self.gat1(x, edge_index_homogeneous, return_attention_weights=True)
             x = F.elu(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
-            x, (_, alpha2) = self.gat2(x, edge_index_homogeneous, return_attention_weights=True)
+            x, (edge_idx2, alpha2) = self.gat2(x, edge_index_homogeneous, return_attention_weights=True)
             drug_out = x[:num_drugs]
-            return drug_out, [alpha1, alpha2]
+            return drug_out, [(edge_idx1, alpha1), (edge_idx2, alpha2)]
         else:
             x = F.elu(self.gat1(x, edge_index_homogeneous))
             x = F.dropout(x, p=self.dropout, training=self.training)
