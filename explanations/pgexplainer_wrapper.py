@@ -68,11 +68,13 @@ def train_pgexplainer(model, edge_index, num_drugs, train_pairs, device, epochs=
         # Sample binary mask stochastically
         dist = torch.distributions.Bernoulli(edge_probs)
         sampled_mask = dist.sample()
-        log_probs = dist.log_prob(sampled_mask).sum()
 
         # Ensure we keep at least a few edges
         if sampled_mask.sum() == 0:
+            sampled_mask = sampled_mask.clone()
             sampled_mask[torch.randint(0, len(sampled_mask), (5,))] = 1.0
+
+        log_probs = dist.log_prob(sampled_mask).sum()
 
         # Masked forward pass
         masked_edge_index = edge_index[:, sampled_mask > 0.5]
