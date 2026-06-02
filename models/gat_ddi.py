@@ -10,7 +10,8 @@ class HeteroGATDDI(nn.Module):
         super().__init__()
         self.drug_embed = nn.Embedding(num_drugs, drug_hidden)
         self.protein_embed = nn.Embedding(num_proteins, protein_hidden)
-        self.gat1 = GATConv(drug_hidden + protein_hidden, gat_hidden, heads=gat_heads, concat=True)
+        assert drug_hidden == protein_hidden, "drug_hidden and protein_hidden must be equal to concatenate along the node axis"
+        self.gat1 = GATConv(drug_hidden, gat_hidden, heads=gat_heads, concat=True)
         self.gat2 = GATConv(gat_hidden * gat_heads, gat_hidden, heads=1, concat=False)
         self.mlp = nn.Sequential(
             nn.Linear(gat_hidden * 2, 256),
