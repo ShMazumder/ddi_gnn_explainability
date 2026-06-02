@@ -58,11 +58,13 @@ def run_gnnexplainer(model, edge_index, num_drugs, sample_pairs, device):
                 # Sample binary mask stochastically
                 dist = torch.distributions.Bernoulli(sigmoid_mask)
                 sampled_mask = dist.sample()
-                log_probs = dist.log_prob(sampled_mask).sum()
                 
                 # Ensure we keep at least a few edges (stochastic fallback)
                 if sampled_mask.sum() == 0:
+                    sampled_mask = sampled_mask.clone()
                     sampled_mask[torch.randint(0, len(sampled_mask), (5,))] = 1.0
+                
+                log_probs = dist.log_prob(sampled_mask).sum()
                 
                 # Run forward pass with sampled edges
                 masked_edge_index = edge_index[:, sampled_mask > 0.5]
