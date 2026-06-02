@@ -16,10 +16,10 @@ def get_attention_weights(model, edge_index, num_drugs, device):
         _, attention_weights = model.forward(
             {'drug': None, 'protein': None}, edge_index, num_drugs, return_attention_weights=True
         )
-    return [alpha.detach() for alpha in attention_weights]
+    return [(edge_idx.detach(), alpha.detach()) for edge_idx, alpha in attention_weights]
 
 
-def compute_rollout(attention_weights, edge_index, num_nodes):
+def compute_rollout(attention_weights, num_nodes):
     """
     Compute attention rollout across layers.
 
@@ -28,16 +28,16 @@ def compute_rollout(attention_weights, edge_index, num_nodes):
     The final rollout is the product of all layer matrices.
     """
     # Start with identity
-    rollout = torch.eye(num_nodes, device=attention_weights[0].device)
+    rollout = torch.eye(num_nodes, device=attention_weights[0][1].device)
 
-    for alpha in attention_weights:
+    for edge_idx, alpha in attention_weights:
         # alpha shape: (num_edges, num_heads) or (num_edges,)
         if alpha.dim() == 2:
             alpha = alpha.mean(dim=1)  # average across heads
 
         # Build sparse attention matrix
         attn_matrix = torch.zeros(num_nodes, num_nodes, device=alpha.device)
-        src, dst = edge_index
+        src, dst = edge_idx
         attn_matrix[dst, src] = alpha
 
         # Add identity (residual connection)
@@ -81,7 +81,7 @@ def attention_rollout(model, edge_index, num_drugs, sample_pairs, device):
         return explanations
 
     num_nodes = num_drugs + (edge_index.max().item() + 1 - num_drugs)
-    rollout = compute_rollout(attn_weights, edge_index, num_nodes)
+    rollout = compute_rollout(attn_weights, num_nodes)
 
     explanations = []
     for i in tqdm(range(len(sample_pairs)), desc="Attention Rollout"):
