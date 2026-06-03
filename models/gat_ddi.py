@@ -44,9 +44,14 @@ class HeteroGATDDI(nn.Module):
             drug_out = x[:num_drugs]
             return drug_out
 
-    def predict_side_effects(self, drug_embeddings, drug_pairs):
+    def predict_side_effects_logits(self, drug_embeddings, drug_pairs):
         emb_i = drug_embeddings[drug_pairs[:, 0]]
         emb_j = drug_embeddings[drug_pairs[:, 1]]
         pair_emb = torch.cat([emb_i, emb_j], dim=1)
         logits = self.mlp(pair_emb)
+        return logits
+
+    def predict_side_effects(self, drug_embeddings, drug_pairs):
+        logits = self.predict_side_effects_logits(drug_embeddings, drug_pairs)
         return torch.sigmoid(logits)
+
