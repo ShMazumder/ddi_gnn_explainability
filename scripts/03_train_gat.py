@@ -28,15 +28,18 @@ def train():
     edge_index = data['drug', 'ddi', 'drug'].edge_index
     labels = data['drug', 'ddi', 'drug'].side_effect_label  # (num_pairs, num_side_effects)
 
-    # Create homogeneous edge index (drugs + proteins)
-    # Clone the indices to prevent in-place modification of original HeteroData object
-    drug_protein_edges = data['drug', 'binds', 'protein'].edge_index.clone()
-    # Offset protein indices by num_drugs
-    drug_protein_edges[1] += num_drugs
-    ppi_edges = data['protein', 'interacts', 'protein'].edge_index.clone()
-    ppi_edges[0] += num_drugs
-    ppi_edges[1] += num_drugs
-    hom_edge = torch.cat([drug_protein_edges, ppi_edges], dim=1)
+    # Create bidirectional drug-protein edges
+    dp_edges = data['drug', 'binds', 'protein'].edge_index.clone()
+    dp_edges[1] += num_drugs
+    pd_edges = torch.stack([dp_edges[1], dp_edges[0]], dim=0)
+    
+    # Create bidirectional protein-protein interactions
+    p_edges = data['protein', 'interacts', 'protein'].edge_index.clone()
+    p_edges[0] += num_drugs
+    p_edges[1] += num_drugs
+    p_edges_rev = torch.stack([p_edges[1], p_edges[0]], dim=0)
+    
+    hom_edge = torch.cat([dp_edges, pd_edges, p_edges, p_edges_rev], dim=1)
 
     # Train/val/test split on drug pairs
     num_pairs = edge_index.size(1)

@@ -30,13 +30,17 @@ def evaluate_faithfulness():
     num_proteins = data['protein'].num_nodes
     labels = data['drug', 'ddi', 'drug'].side_effect_label
 
-    # Build homogeneous edge index
-    drug_protein_edges = data['drug', 'binds', 'protein'].edge_index.clone()
-    drug_protein_edges[1] += num_drugs
-    ppi_edges = data['protein', 'interacts', 'protein'].edge_index.clone()
-    ppi_edges[0] += num_drugs
-    ppi_edges[1] += num_drugs
-    hom_edge = torch.cat([drug_protein_edges, ppi_edges], dim=1)
+    # Build homogeneous edge index (bidirectional)
+    dp_edges = data['drug', 'binds', 'protein'].edge_index.clone()
+    dp_edges[1] += num_drugs
+    pd_edges = torch.stack([dp_edges[1], dp_edges[0]], dim=0)
+    
+    p_edges = data['protein', 'interacts', 'protein'].edge_index.clone()
+    p_edges[0] += num_drugs
+    p_edges[1] += num_drugs
+    p_edges_rev = torch.stack([p_edges[1], p_edges[0]], dim=0)
+    
+    hom_edge = torch.cat([dp_edges, pd_edges, p_edges, p_edges_rev], dim=1)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
