@@ -30,6 +30,26 @@ python scripts/05_faithfulness.py
 python scripts/06_visualise.py
 ```
 
+## Testing & Model Dependency Verification
+
+To verify that GAT node representations depend on the graph topology, you can run the unit test on synthetic data:
+
+```bash
+python3 tests/test_model_dependence.py
+```
+
+This verifies that the GNN is executing bidirectional message-passing correctly and that the explanation subgraphs are faithful.
+
+## Homogeneous Graph Representation & Bidirectional Flow
+
+The clinical knowledge graph aggregates multi-source datasets (DrugBank, TWOSIDES, STRING) into a heterogeneous structure, which is then mapped to a unified homogeneous representation for GAT Conv processing. 
+
+Crucially, **edges are modeled as bidirectional (undirected)**:
+1. Drug-to-protein and protein-to-drug relations (`binds`, `bound_by`).
+2. Protein-protein interactions (`interacts`).
+
+By ensuring edges flow in both directions, drug nodes can successfully aggregate topological features from their binding proteins and neighbors. This prevents the GNN from degrading into a trivial MLP embedding lookup, enabling explainability wrappers (Attention Rollout, GNNExplainer, PGExplainer, and KEC) to compute faithful, structure-dependent explanation subgraphs.
+
 ## Datasets
 
 The script `01_download_data.py` automatically downloads:
