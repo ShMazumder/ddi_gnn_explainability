@@ -143,6 +143,25 @@ def build_graph():
     ppi_edges = []
     if string_path.exists():
         print("Processing STRING protein links streamingly...")
+        
+        # Load mapping if it exists
+        mapping_path = raw_dir / "protein.aliases.v12.0.txt"
+        ensp_to_uniprot = {}
+        if mapping_path.exists():
+            print("Loading STRING protein aliases mapping...")
+            with open(mapping_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if line.startswith('#'):
+                        continue
+                    parts = line.strip().split('\t')
+                    if len(parts) >= 2:
+                        string_id = parts[0].split('.')[-1] # e.g. ENSP00000269305
+                        alias = parts[1]
+                        source = parts[2] if len(parts) > 2 else ""
+                        # Check if source indicates UniProt accession
+                        if "UniProt" in source or "BLAST_UniProt" in source:
+                            ensp_to_uniprot[string_id] = alias
+
         with open(string_path, 'r', encoding='utf-8') as f:
             reader = csv.reader(f, delimiter=' ')
             header = next(reader)
@@ -154,8 +173,11 @@ def build_graph():
                 if score >= 700:
                     p1 = row[0].split('.')[-1]
                     p2 = row[1].split('.')[-1]
-                    if p1 in protein_to_idx and p2 in protein_to_idx:
-                        ppi_edges.append((protein_to_idx[p1], protein_to_idx[p2]))
+                    # Map to UniProt ID first
+                    u1 = ensp_to_uniprot.get(p1, p1)
+                    u2 = ensp_to_uniprot.get(p2, p2)
+                    if u1 in protein_to_idx and u2 in protein_to_idx:
+                        ppi_edges.append((protein_to_idx[u1], protein_to_idx[u2]))
     
     # Process TWOSIDES
     twosides_path = raw_dir / "TWOSIDES.csv"
