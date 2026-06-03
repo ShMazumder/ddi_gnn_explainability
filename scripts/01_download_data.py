@@ -60,6 +60,18 @@ def main():
             with open(raw_dir / "9606.protein.links.v12.0.txt", 'wb') as f_out:
                 shutil.copyfileobj(f_in, f_out)
 
+    # STRING protein aliases (human)
+    aliases_url = "https://stringdb-downloads.org/download/protein.aliases.v12.0/9606.protein.aliases.v12.0.txt.gz"
+    aliases_gz = raw_dir / "9606.protein.aliases.v12.0.txt.gz"
+    aliases_dest = raw_dir / "protein.aliases.v12.0.txt"
+    if not aliases_dest.exists():
+        if not aliases_gz.exists():
+            download_file(aliases_url, aliases_gz)
+        print(f"Extracting {aliases_gz} -> {aliases_dest}")
+        with gzip.open(aliases_gz, 'rb') as f_in:
+            with open(aliases_dest, 'wb') as f_out:
+                shutil.copyfileobj(f_in, f_out)
+
     print("Download complete. All datasets (TWOSIDES, SIDER, STRING, and DrugBank XML) have been downloaded successfully.")
 
 
