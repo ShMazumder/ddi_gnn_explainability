@@ -19,10 +19,10 @@ model:
   batch_size: 256
 
 explanation:
-  num_pairs: 200
+  num_pairs: 5
   k_hop: 2
   methods: ["attention", "gnnexplainer", "pgexplainer", "kec"]
-  faithfulness_samples: 10
+  faithfulness_samples: 5
 
 usability:
   num_participants: 8
