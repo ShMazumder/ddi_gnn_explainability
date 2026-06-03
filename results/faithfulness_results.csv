@@ -1,5 +1,5 @@
-method,sufficiency,necessity,fidelity_plus,fidelity_minus,sparsity,num_evaluated
-attention,1.0,0.0,0.0,0.0,0.08298755186721993,10
-gnnexplainer,1.0,0.0,0.0,0.0,0.08298755186721993,10
-pgexplainer,1.0,0.0,0.0,0.0,0.08298755186721993,10
-kec,1.0,0.0,0.0,0.0,0.033195020746887974,10
+method,sufficiency,necessity,num_evaluated
+attention,1.0,1.192092957680302e-09,5
+gnnexplainer,1.0,1.192092957680302e-09,5
+pgexplainer,1.0,1.192092957680302e-09,5
+kec,1.0,1.192092957680302e-09,5
