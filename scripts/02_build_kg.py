@@ -43,10 +43,12 @@ def parse_drugbank(xml_path):
                 
                 # Extract targets
                 for target in elem.findall("db:targets/db:target", ns):
-                    uniprot = target.find(".//db:uniprot-id", ns)
-                    if uniprot is not None:
-                        drug_protein.append((drug_id, uniprot.text))
-                        protein_set.add(uniprot.text)
+                    poly = target.find("db:polypeptide", ns)
+                    if poly is not None:
+                        uniprot_id = poly.attrib.get('id')
+                        if uniprot_id:
+                            drug_protein.append((drug_id, uniprot_id))
+                            protein_set.add(uniprot_id)
             
             elem.clear() # Free XML memory
             
