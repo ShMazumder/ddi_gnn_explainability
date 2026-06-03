@@ -122,10 +122,15 @@ def process_twosides(twosides_path, drug_to_idx, rxcui_to_db, limit_se=200):
 
 
 def build_graph():
-    with open("config.yaml", "r") as f:
+    config_path = Path("config.yaml")
+    if not config_path.exists():
+        config_path = Path("../config.yaml")
+    project_root = config_path.parent.resolve()
+
+    with open(config_path, "r") as f:
         config = yaml.safe_load(f)
-    raw_dir = Path(config["data"]["raw_dir"])
-    graph_dir = Path(config["data"]["graph_dir"])
+    raw_dir = project_root / config["data"]["raw_dir"]
+    graph_dir = project_root / config["data"]["graph_dir"]
     graph_dir.mkdir(parents=True, exist_ok=True)
 
     # Parse DrugBank
