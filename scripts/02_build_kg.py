@@ -147,6 +147,10 @@ def build_graph():
         # Load mapping if it exists
         mapping_path = raw_dir / "protein.aliases.v12.0.txt"
         ensp_to_uniprot = {}
+        import re
+        UNIPROT_AC_PATTERN = re.compile(
+            r'^([OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9][A-Z][A-Z0-9]{2}[0-9]|[A-NR-Z][0-9][A-Z][A-Z0-9]{2}[0-9][A-Z][A-Z0-9]{2}[0-9])$'
+        )
         if mapping_path.exists():
             print("Loading STRING protein aliases mapping...")
             with open(mapping_path, 'r', encoding='utf-8') as f:
@@ -162,7 +166,7 @@ def build_graph():
                         source_upper = source.upper()
                         if any(x in source_upper for x in ["UNIPROT", "SWISS-PROT", "SWISSPROT", "TREMBL"]):
                             alias_upper = alias.upper()
-                            if len(alias_upper) in [6, 10] and alias_upper.isalnum():
+                            if UNIPROT_AC_PATTERN.match(alias_upper):
                                 ensp_to_uniprot[string_id] = alias_upper
 
         print(f"Loaded {len(ensp_to_uniprot)} ENSP-to-UniProt mappings.")
