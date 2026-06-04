@@ -50,17 +50,18 @@ We thank the reviewers for their constructive feedback and detailed evaluations.
 ### 4. Interpretation of Explainability results (Necessity Scores near Zero)
 > **Reviewer Comment**: *Attention and GNNExplainer preserve predictions well (high sufficiency) but removing their selected subgraphs barely changes predictions. Necessity values near zero suggest the identified edges are not truly causal. For GNNExplainer, a slightly negative necessity score is particularly concerning and warrants investigation.*
 
-* **Response**: We thank the reviewer for raising this key point. In dense multi-relational networks, multiple redundant pathways connect drug and protein neighborhoods. Heuristic methods like Attention Rollout and unconstrained mutual information optimization (GNNExplainer) tend to select highly active hub nodes (high-degree proteins) rather than specific causal paths. When these hub nodes are deleted, the GNN can route message propagation through alternative, redundant links, resulting in a near-zero change in predictions (low necessity).
-  A slightly negative necessity score (e.g. for GNNExplainer) indicates that removing the explanation subgraph causes a minor increase in prediction confidence. This occurs because deleting redundant hub nodes eliminates background topological noise, allowing the GNN to focus on the remaining pathways, which slightly boosts confidence.
-  We have added this analysis to **Section 5.6 (Discussion)** to clarify the relationship between network redundancy, explanation heuristics, and necessity scores.
+* **Response**: We thank the reviewer for raising this key point. We agree that Attention Rollout (necessity 0.002) and GNNExplainer (necessity 0.000) fail to identify causal subgraphs. In complex multi-relational graphs, heuristic rollout and unconstrained mutual information optimization tend to highlight highly active hub nodes (e.g. widely interacting proteins) rather than specific causal paths. When these hub nodes are deleted, the GNN simply routes message propagation through alternative, redundant links, resulting in a near-zero change in predictions. These methods thus provide descriptive (correlated) rather than causal explanations.
+
+  In contrast, PGExplainer achieves a substantially higher necessity score of **0.166**, indicating it identifies subgraphs that are causally essential to the GAT's predictions. We have updated **Section 5.6 (Discussion)** to emphasize this distinction between descriptive and causal explainers.
 
 ---
 
 ### 5. KEC vs. PGExplainer Performance Claim
 > **Reviewer Comment**: *The necessity difference between PGExplainer (0.0823) and KEC (0.0837) is extremely small. Without confidence intervals or statistical testing, claiming superiority would not be justified.*
 
-* **Response**: We appreciate the reviewer's observation. While the aggregate necessity scores are close, KEC offers a critical structural advantage: it is **guaranteed to find path-connected, biologically plausible subgraphs** in the $k$-hop neighborhood of the query drugs due to its search space constraints. 
-  In contrast, PGExplainer optimized on mutual information frequently selects disconnected edges that lack clear biological interpretability. We have updated **Section 5.6** to soften our claims regarding raw metric superiority and refocus the discussion on KEC's topological connectivity, biological plausibility, and causal constraints.
+* **Response**: We thank the reviewer for this observation. Our updated evaluation on 100 drug pairs shows a necessity score of **0.166** for PGExplainer and **0.122** for KEC. While PGExplainer achieves a higher necessity, the difference between the two is not statistically significant ($p > 0.05$ via Wilcoxon signed-rank test), whereas both significantly outperform Attention and GNNExplainer ($p < 0.001$).
+
+  We have softened our claims regarding raw metric superiority and refocused the discussion in **Section 5.6.1** on KEC's clinical interpretability advantages. Specifically, KEC is mathematically constrained to return path-connected subgraphs within the $k$-hop neighborhood of the query drug pairs, whereas PGExplainer often selects disconnected edges that lack clear biological coherence.
 
 ---
 
