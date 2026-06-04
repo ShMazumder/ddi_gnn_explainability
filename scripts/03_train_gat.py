@@ -8,7 +8,9 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import roc_auc_score, average_precision_score
+from sklearn.metrics import roc_auc_score, average_precision_score, f1_score, precision_score, recall_score
+import json
+import pandas as pd
 from tqdm import tqdm
 import yaml
 from pathlib import Path
@@ -147,10 +149,6 @@ def train():
     else:
         side_effect_names = [f"SideEffect_{i}" for i in range(test_labels_cat.shape[1])]
         
-    from sklearn.metrics import roc_auc_score, average_precision_score, f1_score, precision_score, recall_score
-    import json
-    import pandas as pd
-    
     # Overall metrics
     overall_auroc = roc_auc_score(test_labels_cat, test_preds_cat, average='macro')
     overall_auprc = average_precision_score(test_labels_cat, test_preds_cat, average='macro')

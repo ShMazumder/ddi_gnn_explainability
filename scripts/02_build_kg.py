@@ -161,7 +161,9 @@ def build_graph():
                         # Check if source indicates UniProt / Swiss-Prot / TrEMBL accession
                         source_upper = source.upper()
                         if any(x in source_upper for x in ["UNIPROT", "SWISS-PROT", "SWISSPROT", "TREMBL"]):
-                            ensp_to_uniprot[string_id] = alias
+                            alias_upper = alias.upper()
+                            if len(alias_upper) in [6, 10] and alias_upper.isalnum():
+                                ensp_to_uniprot[string_id] = alias_upper
 
         print(f"Loaded {len(ensp_to_uniprot)} ENSP-to-UniProt mappings.")
         print(f"Sample mapping keys: {list(ensp_to_uniprot.keys())[:10]}")
