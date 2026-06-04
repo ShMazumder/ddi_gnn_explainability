@@ -28,6 +28,9 @@ python scripts/05_faithfulness.py
 
 # Generate visualisations
 python scripts/06_visualise.py
+
+# Run GNN ablation studies
+python scripts/run_ablations.py
 ```
 
 ## Testing & Model Dependency Verification

@@ -158,8 +158,9 @@ def build_graph():
                         string_id = parts[0].split('.')[-1] # e.g. ENSP00000269305
                         alias = parts[1]
                         source = parts[2] if len(parts) > 2 else ""
-                        # Check if source indicates UniProt accession
-                        if "UniProt" in source or "BLAST_UniProt" in source:
+                        # Check if source indicates UniProt / Swiss-Prot / TrEMBL accession
+                        source_upper = source.upper()
+                        if any(x in source_upper for x in ["UNIPROT", "SWISS-PROT", "SWISSPROT", "TREMBL"]):
                             ensp_to_uniprot[string_id] = alias
 
         with open(string_path, 'r', encoding='utf-8') as f:

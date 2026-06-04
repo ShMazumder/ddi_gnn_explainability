@@ -19,11 +19,19 @@ class HeteroGATDDI(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(256, out_dim)
         )
+        self.bypass_proj = nn.Linear(drug_hidden, gat_hidden)
         self.dropout = dropout
 
-    def forward(self, x_dict, edge_index_homogeneous, num_drugs, return_attention_weights=False):
+    def forward(self, x_dict, edge_index_homogeneous, num_drugs, return_attention_weights=False, bypass_gat=False):
         # x_dict: {'drug': None, 'protein': None} – we use embeddings
         drug_emb = self.drug_embed(torch.arange(num_drugs, device=next(self.parameters()).device))
+        
+        if bypass_gat:
+            drug_out = F.relu(self.bypass_proj(drug_emb))
+            if return_attention_weights:
+                return drug_out, []
+            return drug_out
+
         num_proteins = self.protein_embed.num_embeddings
         protein_emb = self.protein_embed(torch.arange(num_proteins, device=next(self.parameters()).device))
         x = torch.cat([drug_emb, protein_emb], dim=0)

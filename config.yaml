@@ -22,7 +22,7 @@ explanation:
   num_pairs: 200
   k_hop: 2
   methods: ["attention", "gnnexplainer", "pgexplainer", "kec"]
-  faithfulness_samples: 10
+  faithfulness_samples: 100
 
 usability:
   num_participants: 8
