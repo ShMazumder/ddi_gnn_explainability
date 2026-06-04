@@ -104,3 +104,37 @@ def sparsity(edge_mask, total_edges):
     else:
         num_selected = sum(1 for x in edge_mask if x > 0.5)
     return num_selected / max(total_edges, 1)
+
+
+def check_connectivity_and_dist(expl_edges_mask, d1, d2, hom_edge):
+    """
+    Check if the two query drugs (d1, d2) are connected via selected explanation edges
+    in hom_edge, and if so, return the shortest path length (hop distance).
+    """
+    from collections import defaultdict
+    adj = defaultdict(list)
+    
+    # Get indices of selected edges (weight > 0.5)
+    if isinstance(expl_edges_mask, torch.Tensor):
+        selected_indices = torch.where(expl_edges_mask > 0.5)[0].tolist()
+    else:
+        selected_indices = [idx for idx, val in enumerate(expl_edges_mask) if val > 0.5]
+        
+    selected_edges = hom_edge[:, selected_indices].tolist()
+    for u, v in zip(selected_edges[0], selected_edges[1]):
+        adj[u].append(v)
+        adj[v].append(u)
+        
+    # BFS from d1 to find shortest path to d2
+    visited = {d1: 0}
+    queue = [d1]
+    while queue:
+        curr = queue.pop(0)
+        dist = visited[curr]
+        if curr == d2:
+            return True, dist
+        for neighbor in adj[curr]:
+            if neighbor not in visited:
+                visited[neighbor] = dist + 1
+                queue.append(neighbor)
+    return False, -1

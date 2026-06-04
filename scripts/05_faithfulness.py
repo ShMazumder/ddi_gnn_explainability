@@ -17,7 +17,10 @@ import sys
 sys.path.append(".")
 
 from models.gat_ddi import HeteroGATDDI
-from faithfulness.metrics import sufficiency, necessity
+from faithfulness.metrics import (
+    sufficiency, necessity, fidelity_plus, fidelity_minus, sparsity,
+    check_connectivity_and_dist
+)
 
 
 def evaluate_faithfulness():
@@ -79,6 +82,11 @@ def evaluate_faithfulness():
 
         suff_scores = []
         nec_scores = []
+        fid_plus_scores = []
+        fid_minus_scores = []
+        sparsity_scores = []
+        conn_scores = []
+        hop_scores = []
 
         for i, expl in enumerate(explanations[:num_samples]):
             if expl is None:
@@ -106,15 +114,45 @@ def evaluate_faithfulness():
             nec = necessity(full_preds[i:i+1], compl_pred)
             nec_scores.append(nec)
 
+            # Fidelity+
+            fid_p = fidelity_plus(full_preds[i:i+1], compl_pred)
+            fid_plus_scores.append(fid_p)
+
+            # Fidelity-
+            fid_m = fidelity_minus(full_preds[i:i+1], sub_pred)
+            fid_minus_scores.append(fid_m)
+
+            # Sparsity
+            expl_sparsity = sparsity(expl_edges, hom_edge.size(1))
+            sparsity_scores.append(expl_sparsity)
+
+            # Path connectedness and hop distance
+            d1, d2 = sample_pairs[i].tolist()
+            is_conn, hop_dist = check_connectivity_and_dist(expl_edges, d1, d2, hom_edge)
+            conn_scores.append(float(is_conn))
+            if is_conn:
+                hop_scores.append(float(hop_dist))
+
         avg_suff = np.mean(suff_scores) if suff_scores else 0.0
         avg_nec = np.mean(nec_scores) if nec_scores else 0.0
+        avg_fid_plus = np.mean(fid_plus_scores) if fid_plus_scores else 0.0
+        avg_fid_minus = np.mean(fid_minus_scores) if fid_minus_scores else 0.0
+        avg_sparsity = np.mean(sparsity_scores) if sparsity_scores else 0.0
+        pct_conn = np.mean(conn_scores) * 100.0 if conn_scores else 0.0
+        avg_hop = np.mean(hop_scores) if hop_scores else -1.0
+
         results_rows.append({
             'method': method_name,
             'sufficiency': avg_suff,
             'necessity': avg_nec,
+            'fidelity_plus': avg_fid_plus,
+            'fidelity_minus': avg_fid_minus,
+            'sparsity': avg_sparsity,
+            'path_connected_pct': pct_conn,
+            'avg_hop_dist': avg_hop,
             'num_evaluated': len(suff_scores)
         })
-        print(f"  Sufficiency: {avg_suff:.4f}, Necessity: {avg_nec:.4f}")
+        print(f"  Sufficiency: {avg_suff:.4f}, Necessity: {avg_nec:.4f}, Fidelity+: {avg_fid_plus:.4f}, Fidelity-: {avg_fid_minus:.4f}, Sparsity: {avg_sparsity:.4f}, Connected: {pct_conn:.1f}%, Hop: {avg_hop:.2f}")
 
     # Save results
     df = pd.DataFrame(results_rows)

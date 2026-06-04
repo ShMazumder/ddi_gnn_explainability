@@ -8,7 +8,10 @@ from explanations.attention_rollout import attention_rollout
 from explanations.gnnexplainer_wrapper import run_gnnexplainer
 from explanations.pgexplainer_wrapper import run_pgexplainer
 from explanations.kec import run_kec
-from faithfulness.metrics import sufficiency, necessity
+from faithfulness.metrics import (
+    sufficiency, necessity, fidelity_plus, fidelity_minus, sparsity,
+    check_connectivity_and_dist
+)
 
 def build_synthetic_data():
     data = HeteroData()
@@ -113,6 +116,11 @@ def test_pipeline():
         print(f"Method: {method_name}")
         suff_scores = []
         nec_scores = []
+        fid_plus_scores = []
+        fid_minus_scores = []
+        sparsity_scores = []
+        conn_scores = []
+        hop_scores = []
         
         for i, expl in enumerate(explanations):
             if expl is None:
@@ -137,9 +145,33 @@ def test_pipeline():
                 compl_pred = model.predict_side_effects(drug_emb_compl, sample_pairs[i:i+1])
             nec = necessity(full_preds[i:i+1], compl_pred)
             nec_scores.append(nec)
+
+            # Fidelity+
+            fid_p = fidelity_plus(full_preds[i:i+1], compl_pred)
+            fid_plus_scores.append(fid_p)
+
+            # Fidelity-
+            fid_m = fidelity_minus(full_preds[i:i+1], sub_pred)
+            fid_minus_scores.append(fid_m)
+
+            # Sparsity
+            expl_sparsity = sparsity(expl_edges, hom_edge.size(1))
+            sparsity_scores.append(expl_sparsity)
+
+            # Path connectedness and hop distance
+            d1, d2 = sample_pairs[i].tolist()
+            is_conn, hop_dist = check_connectivity_and_dist(expl_edges, d1, d2, hom_edge)
+            conn_scores.append(float(is_conn))
+            if is_conn:
+                hop_scores.append(float(hop_dist))
             
         print(f"  Avg Sufficiency: {np.mean(suff_scores) if suff_scores else 0.0:.4f}")
         print(f"  Avg Necessity: {np.mean(nec_scores) if nec_scores else 0.0:.4f}")
+        print(f"  Avg Fidelity+: {np.mean(fid_plus_scores) if fid_plus_scores else 0.0:.4f}")
+        print(f"  Avg Fidelity-: {np.mean(fid_minus_scores) if fid_minus_scores else 0.0:.4f}")
+        print(f"  Avg Sparsity: {np.mean(sparsity_scores) if sparsity_scores else 0.0:.4f}")
+        print(f"  Connected %: {np.mean(conn_scores) * 100.0 if conn_scores else 0.0:.1f}%")
+        print(f"  Avg Hop Dist: {np.mean(hop_scores) if hop_scores else -1.0:.2f}")
         
     print("\nAll pipeline components tested successfully on bidirectional graph!")
 
