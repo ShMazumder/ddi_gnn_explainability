@@ -24,14 +24,14 @@ def plot_faithfulness_comparison(results_path, output_dir):
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 
     # Sufficiency
-    sns.barplot(data=df, x='method', y='sufficiency', ax=axes[0], palette='viridis')
+    sns.barplot(data=df, x='method', y='sufficiency', ax=axes[0], hue='method', palette='viridis', legend=False)
     axes[0].set_title('Sufficiency by Method')
     axes[0].set_ylabel('Sufficiency Score')
     axes[0].set_xlabel('')
     axes[0].set_ylim(0, 1)
 
     # Necessity
-    sns.barplot(data=df, x='method', y='necessity', ax=axes[1], palette='magma')
+    sns.barplot(data=df, x='method', y='necessity', ax=axes[1], hue='method', palette='magma', legend=False)
     axes[1].set_title('Necessity by Method')
     axes[1].set_ylabel('Necessity Score')
     axes[1].set_xlabel('')

@@ -120,6 +120,100 @@ def train():
 
     print(f"Training complete. Best AUROC: {best_auroc:.4f}")
 
+    # Test evaluation
+    print("\n--- Evaluating Best Model on Test Set ---")
+    model.load_state_dict(torch.load("results/model_checkpoint.pt", map_location=device))
+    model.eval()
+    
+    test_loader = DataLoader(TensorDataset(test_pairs, test_labels), batch_size=config["model"]["batch_size"])
+    all_test_preds = []
+    all_test_labels = []
+    with torch.no_grad():
+        drug_emb = model.forward({'drug': None, 'protein': None}, hom_edge, num_drugs)
+        for batch_pairs, batch_labels in test_loader:
+            batch_pairs = batch_pairs.to(device)
+            preds = model.predict_side_effects(drug_emb, batch_pairs)
+            all_test_preds.append(preds.cpu())
+            all_test_labels.append(batch_labels.cpu())
+            
+    test_preds_cat = torch.cat(all_test_preds).numpy()
+    test_labels_cat = torch.cat(all_test_labels).numpy()
+    
+    # Load side effect names
+    side_effects_path = Path(config["data"]["graph_dir"]) / "side_effects.txt"
+    if side_effects_path.exists():
+        with open(side_effects_path, 'r', encoding='utf-8') as f:
+            side_effect_names = [line.strip() for line in f if line.strip()]
+    else:
+        side_effect_names = [f"SideEffect_{i}" for i in range(test_labels_cat.shape[1])]
+        
+    from sklearn.metrics import roc_auc_score, average_precision_score, f1_score, precision_score, recall_score
+    import json
+    import pandas as pd
+    
+    # Overall metrics
+    overall_auroc = roc_auc_score(test_labels_cat, test_preds_cat, average='macro')
+    overall_auprc = average_precision_score(test_labels_cat, test_preds_cat, average='macro')
+    test_preds_binary = (test_preds_cat >= 0.5).astype(int)
+    overall_f1 = f1_score(test_labels_cat, test_preds_binary, average='macro', zero_division=0)
+    overall_precision = precision_score(test_labels_cat, test_preds_binary, average='macro', zero_division=0)
+    overall_recall = recall_score(test_labels_cat, test_preds_binary, average='macro', zero_division=0)
+    
+    print("\n==========================================")
+    print("Overall Test Set Metrics")
+    print("==========================================")
+    print(f"Test AUROC (Macro): {overall_auroc:.4f}")
+    print(f"Test AUPRC (Macro): {overall_auprc:.4f}")
+    print(f"Test F1 (Macro):    {overall_f1:.4f}")
+    print(f"Test Precision:     {overall_precision:.4f}")
+    print(f"Test Recall:        {overall_recall:.4f}")
+    print("==========================================\n")
+    
+    # Save overall metrics
+    overall_metrics = {
+        'test_auroc': float(overall_auroc),
+        'test_auprc': float(overall_auprc),
+        'test_f1': float(overall_f1),
+        'test_precision': float(overall_precision),
+        'test_recall': float(overall_recall)
+    }
+    with open("results/test_metrics.json", "w") as f:
+        json.dump(overall_metrics, f, indent=4)
+        
+    # Per-class analysis
+    print("Per-Side-Effect Metrics Table:")
+    print("| Side Effect | Frequency (%) | AUROC | AUPRC | F1 | Precision | Recall |")
+    print("| --- | --- | --- | --- | --- | --- | --- |")
+    
+    per_class_rows = []
+    for c_idx, se_name in enumerate(side_effect_names):
+        freq = float(test_labels_cat[:, c_idx].mean()) * 100
+        if len(np.unique(test_labels_cat[:, c_idx])) < 2:
+            se_auroc = 0.5
+            se_auprc = 0.5
+        else:
+            se_auroc = roc_auc_score(test_labels_cat[:, c_idx], test_preds_cat[:, c_idx])
+            se_auprc = average_precision_score(test_labels_cat[:, c_idx], test_preds_cat[:, c_idx])
+            
+        se_bin_pred = test_preds_binary[:, c_idx]
+        se_f1 = f1_score(test_labels_cat[:, c_idx], se_bin_pred, zero_division=0)
+        se_precision = precision_score(test_labels_cat[:, c_idx], se_bin_pred, zero_division=0)
+        se_recall = recall_score(test_labels_cat[:, c_idx], se_bin_pred, zero_division=0)
+        
+        print(f"| {se_name:<11} | {freq:>13.2f}% | {se_auroc:>5.4f} | {se_auprc:>5.4f} | {se_f1:>5.4f} | {se_precision:>9.4f} | {se_recall:>6.4f} |")
+        
+        per_class_rows.append({
+            'side_effect': se_name,
+            'frequency_pct': freq,
+            'auroc': se_auroc,
+            'auprc': se_auprc,
+            'f1': se_f1,
+            'precision': se_precision,
+            'recall': se_recall
+        })
+        
+    pd.DataFrame(per_class_rows).to_csv("results/per_class_metrics.csv", index=False)
+
 
 if __name__ == "__main__":
     train()

@@ -163,6 +163,11 @@ def build_graph():
                         if any(x in source_upper for x in ["UNIPROT", "SWISS-PROT", "SWISSPROT", "TREMBL"]):
                             ensp_to_uniprot[string_id] = alias
 
+        print(f"Loaded {len(ensp_to_uniprot)} ENSP-to-UniProt mappings.")
+        print(f"Sample mapping keys: {list(ensp_to_uniprot.keys())[:10]}")
+        print(f"Sample mapping values: {list(ensp_to_uniprot.values())[:10]}")
+        print(f"Sample protein_to_idx keys: {list(protein_to_idx.keys())[:10]}")
+
         with open(string_path, 'r', encoding='utf-8') as f:
             reader = csv.reader(f, delimiter=' ')
             header = next(reader)
