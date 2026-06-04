@@ -31,6 +31,9 @@ python scripts/06_visualise.py
 
 # Run GNN ablation studies
 python scripts/run_ablations.py
+
+# Run graph diagnostics
+python scripts/diagnose_graph.py
 ```
 
 ## Testing & Model Dependency Verification
@@ -42,6 +45,16 @@ python3 tests/test_model_dependence.py
 ```
 
 This verifies that the GNN is executing bidirectional message-passing correctly and that the explanation subgraphs are faithful.
+
+## STRING PPI Graph Diagnostics
+
+To analyze the topology, connectivity components, and sparsity of the assembled STRING PPI network, run the diagnostic script:
+
+```bash
+python scripts/diagnose_graph.py
+```
+
+This calculates the average protein degree, edge density, the size of the largest connected component (LCC), and the ratio of connected vs. isolated target proteins.
 
 ## Homogeneous Graph Representation & Bidirectional Flow
 
