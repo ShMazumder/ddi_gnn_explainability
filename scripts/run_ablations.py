@@ -179,10 +179,11 @@ def main():
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
-    # We run for 10 epochs for quick validation
+    # We run for epochs defined in config (default 100) to ensure full convergence
+    epochs = config["model"].get("epochs", 100)
     results = {}
     for mode in ["no_gnn", "no_ppi", "full"]:
-        results[mode] = train_and_evaluate_mode(mode, config, data, train_idx, val_idx, test_idx, device, epochs=10)
+        results[mode] = train_and_evaluate_mode(mode, config, data, train_idx, val_idx, test_idx, device, epochs=epochs)
 
     print("\n==========================================================================================")
     print("Ablation Study Results Table")
