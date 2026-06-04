@@ -98,7 +98,8 @@ We evaluate the faithfulness and topological connectivity of explanations genera
 | **PGExplainer** | 0.7150 | 0.0648 | 0.0648 | 0.1850 | 0.0011 | 22.0% | 4.50 | 100 |
 | **KEC (Proposed)** | 0.6840 | **0.1006** | **0.1006** | 0.1700 | **0.00004** | **100.0%** | **3.20** | 100 |
 
-*Note: Bolded values represent the ideal performance per column (highest for Sufficiency, Necessity, Fidelity+, and Path-Connected %; lowest for Fidelity-, Sparsity, and Avg Hop Distance).*
+*Note: Bolded values represent the ideal performance per column (highest for Sufficiency, Necessity, Fidelity+, and Path-Connected %; lowest for Fidelity-, Sparsity, and Avg Hop Distance). KEC's Sufficiency (0.6840) is not bolded to highlight the trade-off: KEC achieves the lowest sufficiency but the highest necessity. Additionally, the Path-Connected % and Avg Hop Distance metrics were computed post-hoc on the generated explanation subgraphs. Running the updated [05_faithfulness.py](file:///Applications/XAMPP/xamppfiles/htdocs/ddi_gnn_explainability/scripts/05_faithfulness.py) script in this repository will compute all metrics (including path connectivity, hop distance, fidelity, and sparsity) dynamically on the exact explanations from the current run, ensuring complete reproducibility and traceability.*
+
 
 ### 5.5.2 GNN Ablation Study Results
 To isolate the predictive contributions of the heterogeneous network layers, we evaluate prediction performance across three architectural configurations trained to full convergence (100 epochs) on both the validation set (AUROC) and the independent test set (AUROC, AUPRC, F1, Precision, Recall):
@@ -157,15 +158,16 @@ While quantitative metrics verify the faithfulness and topological connectivity 
 ### 5.7.1 Clinical Usability Study Protocol
 1. **Objective**: Compare the comprehensibility and actionability of KEC explanations (path-connected counterfactual subgraphs) against PGExplainer and Attention Rollout.
 2. **Participants**: We will recruit a cohort of $N=15$ licensed clinical pharmacists and clinical pharmacologists. This sample size is consistent with published usability studies of clinical decision support (e.g., Janssen et al., 2023), where thematic saturation is typically reached by 12–20 participants.
-3. **Task & Blinding**: Participants will be presented with 20 randomly sampled drug-drug interaction predictions and their corresponding explanation subgraphs. Triple-blinding will be enforced by: (1) replacing drug names with alphanumeric codes (e.g., `DRG_001`, `DRG_002`), (2) omitting the names of the explainability methods generating the subgraphs, and (3) hiding the ground-truth side-effect labels unless they are directly necessary to evaluate clinical actionability.
+3. **Task & Blinding**: Participants will be presented with 20 randomly sampled drug-drug interaction predictions and their corresponding explanation subgraphs. Triple-blinding will be enforced by: (1) replacing drug names with alphanumeric codes (e.g., `DRG_001`, `DRG_002`), (2) omitting the names of the explainability methods generating the subgraphs, and (3) making side-effect labels visible only if necessary for the actionability question.
 4. **Assessment Framework**: For each explanation, participants will rate the following statements on a 5-point Likert scale (1 = Strongly Disagree, 5 = Strongly Agree):
    - **Clarity / Readability**: *"The path connecting the two drugs and their target proteins is easy to follow and interpret."*
    - **Biological Plausibility**: *"The proteins and interactions included in this explanation are relevant to the known pharmacological mechanism or side effect."*
    - **Clinical Actionability**: *"This explanation provides actionable insights that would assist in risk mitigation or therapy adjustment."*
 5. **Inter-Rater Reliability**: Multi-rater Likert-scale agreement will be quantified using Krippendorff's $\alpha$ with ordinal weighting, computed separately per Likert dimension to verify rating stability.
-6. **Qualitative Evaluation**: Following the Likert scale evaluations, a 15–20 minute semi-structured qualitative interview will be conducted with each participant. The interview will focus on the following core questions:
-   - *"Which explanation format was the easiest to interpret and act on?"*
-   - *"Which explanation was the most confusing, and why?"*
-   - *"What critical information was missing from the subgraphs?"*
-   - *"Would you trust this visual explanation in a real-world clinical prescribing decision?"*
+6. **Qualitative Evaluation**: Following the Likert scale evaluations, a 15–20 minute semi-structured qualitative interview will be conducted with each participant. The interview will focus on the following four open questions:
+   - *"Which explanation was easiest to act on?"*
+   - *"Which was most confusing, and why?"*
+   - *"What critical information was missing?"*
+   - *"Would you trust this in a real prescribing decision?"*
+
 7. **Ethics and IRB**: This protocol has been submitted for Institutional Review Board (IRB) review under exempt status, as it collects only professional feedback on tool usability and does not involve patient-specific health data.
