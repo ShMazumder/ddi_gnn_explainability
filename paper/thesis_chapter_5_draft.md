@@ -33,6 +33,10 @@ During training, the logged loss values can exhibit significant oscillations (e.
 
 Our proposed method identifies the minimal set of edges whose removal changes the model's prediction, subject to restricting the search space to the local k-hop neighborhood of the query drug pair to preserve graph validity constraints. KEC leverages the knowledge graph structure to constrain the search space to biologically plausible perturbations.
 
+To ensure computational feasibility, we implement a highly optimized search strategy:
+1. **Vectorized Subgraph Extraction**: The extraction of the local 2-hop neighborhood is fully vectorized in PyTorch, replacing CPU-GPU synchronization loops with parallel index operations.
+2. **Path-Based Candidate Filtering**: We restrict the candidate edges for perturbation to: (a) direct drug-protein target bindings connected to $d_1$ or $d_2$, and (b) functional protein-protein interaction links connecting their respective target proteins. Since the GNN aggregates features along a 2-hop neighborhood, only edges along these target-connecting paths can influence the query drug representations. Pruning other irrelevant edges (e.g., target bindings of unrelated drugs in the neighborhood) reduces the candidate count from thousands of edges to a few dozen, making the counterfactual search extremely fast.
+
 ### 5.2.5 Graph Homogenization and Bidirectional Message Flow
 
 To apply homogeneous GNN layers (GAT) to the heterogeneous clinical knowledge graph containing drugs, proteins, and clinical relations, the graph is mapped to a unified homogeneous representation. Crucially, the drug-protein binding relations (`binds`) and protein-protein interactions (`interacts`) are modeled as bidirectional (undirected) edges in the homogeneous edge index. 

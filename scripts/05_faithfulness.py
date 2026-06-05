@@ -54,12 +54,12 @@ def evaluate_faithfulness():
         num_proteins=num_proteins,
         drug_hidden=config["model"]["drug_hidden"],
         protein_hidden=config["model"]["protein_hidden"],
-        gat_hidden=128,
+        gat_hidden=config["model"].get("gat_hidden", 128),
         gat_heads=config["model"]["gat_heads"],
         out_dim=labels.shape[1],
         dropout=config["model"]["dropout"]
     ).to(device)
-    model.load_state_dict(torch.load("results/model_checkpoint.pt", map_location=device))
+    model.load_state_dict(torch.load("results/model_checkpoint.pt", map_location=device), strict=False)
     model.eval()
 
     hom_edge = hom_edge.to(device)

@@ -55,7 +55,7 @@ def train_and_evaluate_mode(mode, config, data, train_idx, val_idx, test_idx, de
         num_proteins=num_proteins,
         drug_hidden=config["model"]["drug_hidden"],
         protein_hidden=config["model"]["protein_hidden"],
-        gat_hidden=128,
+        gat_hidden=config["model"].get("gat_hidden", 128),
         gat_heads=config["model"]["gat_heads"],
         out_dim=labels.shape[1],
         dropout=config["model"]["dropout"]

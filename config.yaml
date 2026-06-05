@@ -11,9 +11,10 @@ data:
 
 
 model:
-  drug_hidden: 128
-  protein_hidden: 128
-  gat_heads: 4
+  drug_hidden: 64
+  protein_hidden: 64
+  gat_hidden: 64
+  gat_heads: 2
   gat_layers: 2
   dropout: 0.2
   learning_rate: 0.001

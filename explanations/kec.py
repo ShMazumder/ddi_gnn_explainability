@@ -8,40 +8,51 @@ perturbations.
 """
 
 import torch
+import torch.nn.functional as F
 import numpy as np
 from tqdm import tqdm
 
 
 def get_k_hop_subgraph(edge_index, node_idx, k=2, num_nodes=None):
-    """Extract k-hop neighbourhood around a set of seed nodes."""
+    """Extract k-hop neighbourhood around a set of seed nodes using vectorized PyTorch operations."""
     if num_nodes is None:
         num_nodes = edge_index.max().item() + 1
 
-    visited = set(node_idx) if isinstance(node_idx, (list, set)) else {node_idx}
-    frontier = set(visited)
-
+    device = edge_index.device
     src, dst = edge_index
 
+    # Initialize visited and frontier using boolean tensors for vectorized operations
+    visited_mask = torch.zeros(num_nodes, dtype=torch.bool, device=device)
+    node_idx_tensor = torch.tensor(list(node_idx), dtype=torch.long, device=device) if not isinstance(node_idx, torch.Tensor) else node_idx.to(torch.long)
+    visited_mask[node_idx_tensor] = True
+    
+    frontier_mask = visited_mask.clone()
+
     for _ in range(k):
-        new_frontier = set()
-        for node in frontier:
-            # Find neighbors
-            mask_src = (src == node)
-            mask_dst = (dst == node)
-            neighbors = torch.cat([dst[mask_src], src[mask_dst]]).unique().tolist()
-            new_frontier.update(neighbors)
-        new_frontier -= visited
-        visited.update(new_frontier)
-        frontier = new_frontier
+        # Find neighbors of frontier nodes
+        src_in_frontier = frontier_mask[src]
+        dst_in_frontier = frontier_mask[dst]
 
-    # Get edge indices within the subgraph
-    node_set = visited
-    mask = torch.zeros(edge_index.size(1), dtype=torch.bool)
-    for i in range(edge_index.size(1)):
-        if src[i].item() in node_set and dst[i].item() in node_set:
-            mask[i] = True
+        neighbors_from_src = dst[src_in_frontier]
+        neighbors_from_dst = src[dst_in_frontier]
 
-    return list(visited), mask
+        # Combine and unique
+        new_nodes = torch.cat([neighbors_from_src, neighbors_from_dst]).unique()
+
+        # Filter out already visited nodes
+        new_nodes = new_nodes[~visited_mask[new_nodes]]
+
+        # Update frontier and visited masks
+        frontier_mask.zero_()
+        frontier_mask[new_nodes] = True
+        visited_mask[new_nodes] = True
+
+    # Get edge indices within the subgraph (both src and dst must be in the visited set)
+    mask = visited_mask[src] & visited_mask[dst]
+    
+    # Return as list and boolean mask as required by callers
+    visited_nodes = torch.where(visited_mask)[0].tolist()
+    return visited_nodes, mask
 
 
 def compute_counterfactual(model, edge_index, num_drugs, drug_pair, device,
@@ -55,33 +66,109 @@ def compute_counterfactual(model, edge_index, num_drugs, drug_pair, device,
     3. Return the minimal removal set that changes the prediction
     """
     d1, d2 = drug_pair
-
-    # Get full prediction
-    with torch.no_grad():
-        drug_emb = model.forward({'drug': None, 'protein': None}, edge_index, num_drugs)
-        full_pred = model.predict_side_effects(drug_emb, torch.tensor([[d1, d2]], device=device))
-        full_label = (full_pred > threshold).float()
+    src, dst = edge_index
 
     # Get k-hop subgraph
     subgraph_nodes, subgraph_mask = get_k_hop_subgraph(
         edge_index, [d1, d2], k=k_hop
     )
+    
+    # Global indices of edges in the subgraph
     subgraph_edge_indices = torch.where(subgraph_mask)[0]
 
     if len(subgraph_edge_indices) == 0:
         return None
 
-    # Greedy edge removal: try removing each edge and measure prediction change
+    # Pre-compute mapped node structures (once per drug pair!)
+    subgraph_nodes_tensor = torch.tensor(subgraph_nodes, dtype=torch.long, device=device)
+    node_to_local = {node: i for i, node in enumerate(subgraph_nodes)}
+    d1_local_idx = node_to_local[d1]
+    d2_local_idx = node_to_local[d2]
+    
+    is_drug = subgraph_nodes_tensor < num_drugs
+    drug_ids = subgraph_nodes_tensor[is_drug]
+    protein_ids = subgraph_nodes_tensor[~is_drug] - num_drugs
+    
+    # Slice initial node embeddings once
+    x_local = torch.zeros(len(subgraph_nodes), model.drug_embed.embedding_dim, device=device)
+    if is_drug.sum() > 0:
+        x_local[is_drug] = model.drug_embed(drug_ids)
+    if (~is_drug).sum() > 0:
+        x_local[~is_drug] = model.protein_embed(protein_ids)
+
+    # Build node mapping tensor for fast edge mapping
+    max_node_idx = max(subgraph_nodes)
+    mapping_tensor = torch.zeros(max_node_idx + 1, dtype=torch.long, device=device)
+    mapping_tensor[subgraph_nodes_tensor] = torch.arange(len(subgraph_nodes), device=device)
+
+    # Map the entire subgraph edges to local indices
+    subgraph_src_global = src[subgraph_edge_indices]
+    subgraph_dst_global = dst[subgraph_edge_indices]
+    
+    src_local = mapping_tensor[subgraph_src_global]
+    dst_local = mapping_tensor[subgraph_dst_global]
+    edge_index_local = torch.stack([src_local, dst_local], dim=0)
+
+    # Map global edge index to its local index in subgraph_edge_indices
+    global_to_local_edge = torch.zeros(edge_index.size(1), dtype=torch.long, device=device)
+    global_to_local_edge[subgraph_edge_indices] = torch.arange(len(subgraph_edge_indices), device=device)
+
+    # Helper function to get prediction on a subset of local edges
+    def get_prediction_on_local_edges(local_edge_mask):
+        # Run GAT Conv layers on the local subgraph
+        local_edges = edge_index_local[:, local_edge_mask]
+        h = F.elu(model.gat1(x_local, local_edges))
+        h = model.gat2(h, local_edges)
+        
+        d1_emb = h[d1_local_idx].unsqueeze(0)
+        d2_emb = h[d2_local_idx].unsqueeze(0)
+        
+        # Virtual embeddings lookup
+        drug_emb_virtual = torch.zeros(num_drugs, model.drug_embed.embedding_dim, device=device)
+        drug_emb_virtual[d1] = d1_emb
+        drug_emb_virtual[d2] = d2_emb
+        return model.predict_side_effects(drug_emb_virtual, torch.tensor([[d1, d2]], device=device))
+
+    # Get full prediction (using all local edges)
+    with torch.no_grad():
+        full_local_mask = torch.ones(edge_index_local.size(1), dtype=torch.bool, device=device)
+        full_pred = get_prediction_on_local_edges(full_local_mask)
+        full_label = (full_pred > threshold).float()
+
+    # Find neighbors of d1 and d2 in PyTorch to compute path candidates
+    d1_neighbors = torch.cat([dst[src == d1], src[dst == d1]])
+    d2_neighbors = torch.cat([dst[src == d2], src[dst == d2]])
+    
+    num_nodes_total = edge_index.max().item() + 1
+    d1_target_mask = torch.zeros(num_nodes_total, dtype=torch.bool, device=device)
+    d1_target_mask[d1_neighbors] = True
+    
+    d2_target_mask = torch.zeros(num_nodes_total, dtype=torch.bool, device=device)
+    d2_target_mask[d2_neighbors] = True
+    
+    is_ppi_path = (d1_target_mask[src] & d2_target_mask[dst]) | (d2_target_mask[src] & d1_target_mask[dst])
+    is_direct = (src == d1) | (dst == d1) | (src == d2) | (dst == d2)
+    
+    candidate_mask = is_direct | is_ppi_path
+    final_candidate_mask = subgraph_mask & candidate_mask
+    candidate_indices = torch.where(final_candidate_mask)[0]
+
+    # Fallback to all subgraph edges if path candidate filter returns empty
+    if len(candidate_indices) == 0:
+        candidate_indices = subgraph_edge_indices
+
+    # Greedy edge removal: try removing each candidate edge and measure prediction change
     edge_impacts = []
-    for idx in subgraph_edge_indices:
-        # Create edge index with this edge removed
-        mask = torch.ones(edge_index.size(1), dtype=torch.bool, device=device)
-        mask[idx] = False
-        reduced_edges = edge_index[:, mask]
+    for idx in candidate_indices:
+        # Find local index of this global edge
+        local_edge_idx = global_to_local_edge[idx].item()
+        
+        # Create mask with this edge removed
+        local_mask = torch.ones(edge_index_local.size(1), dtype=torch.bool, device=device)
+        local_mask[local_edge_idx] = False
 
         with torch.no_grad():
-            drug_emb_r = model.forward({'drug': None, 'protein': None}, reduced_edges, num_drugs)
-            reduced_pred = model.predict_side_effects(drug_emb_r, torch.tensor([[d1, d2]], device=device))
+            reduced_pred = get_prediction_on_local_edges(local_mask)
 
         # Impact = change in prediction
         impact = (full_pred - reduced_pred).abs().sum().item()
@@ -92,18 +179,16 @@ def compute_counterfactual(model, edge_index, num_drugs, drug_pair, device,
 
     # Greedily remove edges until prediction flips
     removed_edges = []
-    current_edges = edge_index.clone()
-    removal_mask = torch.ones(edge_index.size(1), dtype=torch.bool, device=device)
+    removal_mask = torch.ones(edge_index_local.size(1), dtype=torch.bool, device=device)
 
     for edge_idx, impact in edge_impacts[:max_removals]:
-        removal_mask[edge_idx] = False
+        local_edge_idx = global_to_local_edge[edge_idx].item()
+        removal_mask[local_edge_idx] = False
         removed_edges.append(edge_idx)
 
         # Check if prediction flipped
-        reduced_edges = edge_index[:, removal_mask]
         with torch.no_grad():
-            drug_emb_r = model.forward({'drug': None, 'protein': None}, reduced_edges, num_drugs)
-            new_pred = model.predict_side_effects(drug_emb_r, torch.tensor([[d1, d2]], device=device))
+            new_pred = get_prediction_on_local_edges(removal_mask)
             new_label = (new_pred > threshold).float()
 
         if not torch.equal(full_label, new_label):
