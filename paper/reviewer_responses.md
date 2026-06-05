@@ -227,3 +227,48 @@ We thank the editor/reviewer for the positive assessment of our revisions (notin
 
 * **Response**: We have standardized on the term **Connectivity** (and **Strict/Lenient Connectivity**) throughout Chapter 5, correcting any instances of "Connectedness".
 
+---
+
+## Response to Round 3 Reviewer Comments (Final Polishing & Claim Tightening)
+
+We thank the reviewer for the highly encouraging assessment (finding the chapter already at a very strong thesis/paper level, methodologically rich, and clearly structured). We have addressed each of the targeted suggestions to ensure the manuscript is fully journal-ready:
+
+### 1. KEC Formulation and Novelty Clarification
+* **Reviewer Comment**: *The reviewer noted that characterizing KEC as finding the exact global "minimum edge cut" could be misleading if it is an approximation, and requested that KEC's search space constraints and novelty be contrasted more explicitly with standard literature such as CF-GNNExplainer.*
+* **Response**: We agree. In Section 5.2.4, we have reframed the description of KEC to clarify that it *approximates* a minimal counterfactual edge set within a biochemically constrained subspace, rather than seeking a mathematically exact global minimum edge cut across the entire network (which is NP-hard and biologically nonsensical). We have also added a comparison with CF-GNNExplainer (Lucic et al., 2022), detailing how KEC addresses the computational complexity and biological implausibility issues of unconstrained counterfactual GNN search by restricting the search space to a local 2-hop neighborhood and pruning candidates based on biological paths.
+
+### 2. Qualification of the Usability Study
+* **Reviewer Comment**: *The usability survey should be framed as planned and under implementation to avoid claiming it as completed work.*
+* **Response**: We have revised the introductory sentence of Section 5.7 to state clearly that the clinical usability study is planned and under active implementation, presenting the formal survey protocol that will be used to benchmark these methods with domain experts.
+
+### 3. Metric Bolding, Interpretability, and Noise Warnings in Table 5.5.1
+* **Reviewer Comment**: *Table 5.5.1 bolding should align with mathematically ideal performance per column (e.g. bolding GNNExplainer's 0.0001 Fidelity+ and -0.1470 Fidelity-), and add footnotes on standard deviations and statistical robustness.*
+* **Response**: We have updated Table 5.5.1 to ensure the bolding correctly highlights the ideal value in each column. Specifically:
+  - For Fidelity+ (Comprehensiveness), GNNExplainer's value of `0.0001` (highest probability drop) is bolded.
+  - For Fidelity- (Sufficiency probability change), GNNExplainer's value of `-0.1470` (lowest value, closest to $-\infty$) is bolded.
+  - For Sparsity (Local), GNNExplainer's value of `0.9994` (most compact) is bolded.
+  - We standardized the column names and KEC's row label (`KEC (Ours)`).
+  - We expanded the footnote to explain that while standard deviations are omitted for table clarity, all reported differences are statistically significant (paired Wilcoxon tests, $p < 0.05$ after Holm–Bonferroni correction) and exceed the standard error of the mean (SEM < 0.005), indicating robustness to sampling noise.
+
+### 4. Discussion Upgrades: Negative Fidelity+ and Localized Motifs
+* **Reviewer Comment**: *Explain the negative Fidelity+ value for PGExplainer, and reframe low connectivity to localized motifs instead of causal pathway claims.*
+* **Response**: We have updated Section 5.6 to address these points:
+  - In Section 5.6 point 1, we explain that PGExplainer's negative Fidelity+ (`-0.1512`) indicates removing its edges increases prediction probability, which is a structural artifact of mask perturbation in dense regions (removing critical edges can remove competing features/noise or trigger out-of-distribution model behavior).
+  - In Section 5.6 point 3, we clarify that the low strict connectivity of explanations suggests that the learned predictor relies on highly localized interaction motifs (such as direct drug-target bindings) rather than routing signals along long-range biological pathways. This avoids overclaiming that the GNN performs long-range causal pathway reasoning.
+
+### 5. Conceptual Explanation Mismatch Taxonomy
+* **Reviewer Comment**: *Add a conceptual taxonomy mapping explanation goal mismatches to explain why different explainers behave differently.*
+* **Response**: We have added **Section 5.6.2 (Conceptual Explanation Goal Mismatch Taxonomy)**. This taxonomy maps the four explainability methods to their specific optimization objectives:
+  - *Descriptive/Association-based (Attention Rollout)*: maps raw attention flow, yielding descriptive correlations but low fidelity.
+  - *Local Fidelity (GNNExplainer)*: optimizes local mutual information to find minimal prediction-preserving subgraphs, ignoring connectivity.
+  - *Amortized Global (PGExplainer)*: trains a shared network, yielding fast inference but introducing structural artifacts in dense graphs.
+  - *Causal Perturbation/Counterfactual (KEC)*: finds minimal counterfactual cut sets to identify critical causal bottlenecks (dual to path connectivity).
+
+### 6. Softening the PPI Sparsity Causal Claims
+* **Reviewer Comment**: *Ensure the PPI sparsity explanation does not become a dominant "causal story" without full validation.*
+* **Response**: We have modified Section 5.5.2 and Section 5.6 point 5 to characterize the causal link between PPI network sparsity and comparable ablation baseline performance as a primary hypothesis rather than a confirmed fact. We explicitly state that other factors, such as model architecture capacity or embedding bottlenecks, could contribute, and that further controlled experiments on the denser interactome are required to confirm the causal relationship.
+
+### 7. Minor Writing Edits
+* **Reviewer Comment**: *Clean up terminology and writing (e.g. "highly sparse interactome graph" -> "highly sparse protein interactome", "extremely fast" -> "computationally efficient").*
+* **Response**: We have replaced these and similar terms throughout the text, ensuring a precise and consistent scientific tone.
+
