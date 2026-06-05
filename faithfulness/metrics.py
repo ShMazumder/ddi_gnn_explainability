@@ -168,10 +168,16 @@ def check_lenient_connectivity_and_dist(expl_edges_mask, d1, d2, hom_edge):
     src = hom_edge[0].tolist()
     dst = hom_edge[1].tolist()
     
+    # Extract local 2-hop neighborhood of query drugs to restrict path search space
+    from explanations.kec import get_k_hop_subgraph
+    _, local_subgraph_mask = get_k_hop_subgraph(hom_edge.cpu(), [d1, d2], k=2)
+    local_edge_indices = torch.where(local_subgraph_mask)[0].tolist()
+    
     from collections import defaultdict
-    full_adj = defaultdict(list)
-    for idx, (u, v) in enumerate(zip(src, dst)):
-        full_adj[u].append((v, idx))
+    local_adj = defaultdict(list)
+    for idx in local_edge_indices:
+        u, v = src[idx], dst[idx]
+        local_adj[u].append((v, idx))
         
     paths_found = []
     
@@ -182,7 +188,7 @@ def check_lenient_connectivity_and_dist(expl_edges_mask, d1, d2, hom_edge):
         if len(path_nodes) > 4: # max length 4 (k=2)
             return
             
-        for neighbor, edge_idx in full_adj[curr]:
+        for neighbor, edge_idx in local_adj[curr]:
             if neighbor not in path_nodes:
                 path_nodes.append(neighbor)
                 path_edges.append(edge_idx)

@@ -76,6 +76,7 @@ def evaluate_faithfulness():
 
     # Evaluate each method
     results_rows = []
+    raw_results_rows = []
     num_samples = config["explanation"]["faithfulness_samples"]
 
     for method_name, explanations in all_explanations.items():
@@ -143,6 +144,18 @@ def evaluate_faithfulness():
             if is_lenient_conn:
                 hop_lenient_scores.append(float(lenient_hop_dist))
 
+            # Record raw per-instance metrics
+            raw_results_rows.append({
+                'pair_idx': i,
+                'method': method_name,
+                'sufficiency': suff,
+                'fidelity_plus': fid_p,
+                'fidelity_minus': fid_m,
+                'sparsity': expl_sparsity,
+                'conn_strict': float(is_strict_conn),
+                'conn_lenient': float(is_lenient_conn)
+            })
+
         avg_suff = np.mean(suff_scores) if suff_scores else 0.0
         avg_nec = np.mean(nec_scores) if nec_scores else 0.0
         avg_fid_plus = np.mean(fid_plus_scores) if fid_plus_scores else 0.0
@@ -175,6 +188,9 @@ def evaluate_faithfulness():
     print(f"\nResults saved to {results_dir / 'faithfulness_results.csv'}")
     print(df.to_string(index=False))
 
+    df_raw = pd.DataFrame(raw_results_rows)
+    df_raw.to_csv(results_dir / "raw_faithfulness_scores.csv", index=False)
+    print(f"Raw per-instance scores saved to {results_dir / 'raw_faithfulness_scores.csv'}")
 
 
 if __name__ == "__main__":
