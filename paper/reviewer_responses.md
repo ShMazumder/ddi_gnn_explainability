@@ -272,3 +272,33 @@ We thank the reviewer for the highly encouraging assessment (finding the chapter
 * **Reviewer Comment**: *Clean up terminology and writing (e.g. "highly sparse interactome graph" -> "highly sparse protein interactome", "extremely fast" -> "computationally efficient").*
 * **Response**: We have replaced these and similar terms throughout the text, ensuring a precise and consistent scientific tone.
 
+---
+
+## Response to Round 4 / Final Polishing Comments
+
+We thank the reviewer for the final set of polishing recommendations. We have integrated each of these targeted refinements directly into the manuscript to ensure maximum defensibility and peer-review robustness:
+
+### 1. Toning Down the Path Connectivity Claim
+* **Reviewer Comment**: *Avoid overclaiming with "confirms" when describing KEC's position along valid pathways. Change to: "This suggests that KEC's counterfactual edge cuts are more likely to lie along valid multi-hop pathways..."*
+* **Response**: We have updated Section 5.6 point 3 to use this exact cautious phrasing, ensuring our claims about path placement are appropriately qualified.
+
+### 2. Empirical Caveat for Negative Fidelity+
+* **Reviewer Comment**: *Qualify the explanation for negative Fidelity+ to prevent it from reading as hand-wavy: "We did not observe systematic evidence distinguishing between these two mechanisms, and further controlled masking experiments are required to isolate the cause."*
+* **Response**: We have appended this sentence to Section 5.6 point 1 to clearly state that distinguishing the exact noise-removal vs. distribution-shift mechanisms is outside the empirical scope of this study and requires further analysis.
+
+### 3. Variance and Standard Deviation Reporting
+* **Reviewer Comment**: *Explicitly acknowledge the reporting of mean values and indicate the availability of standard deviations in supplementary materials to address variance awareness.*
+* **Response**: We have updated the footnote of Table 5.5.1 to state: *"We report mean values across 100 samples; standard deviations are omitted for clarity but are available in supplementary materials."*
+
+### 4. Biological Plausibility Phrasing
+* **Reviewer Comment**: *Change KEC's "ensuring biological plausibility" claim to "encouraging biologically plausible pathways under graph constraints".*
+* **Response**: We have updated Section 5.2.4 (under path-based pruning) to reflect this toned-down framing.
+
+### 5. Scope of the Usability Study
+* **Reviewer Comment**: *Add: "This study will be reported in a future extension of this work" to clearly separate the paper's scope from the planned usability survey protocol.*
+* **Response**: We have appended this text to the introductory sentence of Section 5.7 to make the division between completed and future work explicit.
+
+### 6. Relational Density Conceptual Bridge
+* **Reviewer Comment**: *Add a theoretical explanation connecting GNN message-passing capacity and interactome relational density.*
+* **Response**: We have added the following sentence to the unified interpretation discussion in Section 5.6 point 5: *"This suggests a potential mismatch between graph topology complexity and message-passing capacity, where insufficient relational density limits the effective receptive field of the GAT layers."* This grounds the empirical observations in GNN representation theory.
+
