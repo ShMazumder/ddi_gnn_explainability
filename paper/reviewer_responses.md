@@ -49,18 +49,18 @@ We thank the reviewers for their constructive feedback and detailed evaluations.
 > **Reviewer Comment**: *Were target DDI edges removed from message passing before prediction? If positive edges remain in the graph during training and evaluation, performance may be inflated. This issue requires explicit clarification.*
 
 * **Response**: We would like to clarify that **target DDI edges are never included in the GNN message-passing graph `hom_edge`**. The GAT's topological links consist exclusively of drug-protein target interactions (`binds`) and protein-protein interactions (`interacts`). 
-  DDI edges are only fed as indexing inputs to the final MLP decoder to evaluate DDI class logits and compute cross-entropy training losses on separate train/val/test splits. Consequently, there is **zero circular target leakage** during representation learning. We have added **Section 5.3.1 (Target Edge Masking & Leakage Prevention)** to the manuscript to explain this inductive setup clearly.
+  DDI edges are only fed as indexing inputs to the final MLP decoder to evaluate DDI class logits and compute cross-entropy training losses on separate train/val/test splits. Consequently, this design minimizes information leakage by excluding target DDI edges from message passing, ensuring no direct target-edge leakage in the message-passing stage during representation learning. We have added **Section 5.3.2 (Splitting)** to the manuscript to explain this transductive setup clearly.
 
-  Regarding the split setup, we employ a **pair-level (edge-level) random split** (70% train, 15% val, 15% test). This corresponds to transductive link prediction, predicting novel interactions between known drugs. Because the TWOSIDES DDI dataset is dense, the majority of drugs in the test set appear in other pairs within the training set, which is standard for transductive clinical graph settings. We have documented this split setting in the newly added **Section 5.3.2 (Data Splitting Strategy & Generalization Setting)**.
+  Regarding the split setup, we employ a **pair-level (edge-level) random split** (70% train, 15% val, 15% test). This corresponds to transductive link prediction, predicting novel interactions between known drugs. Because the TWOSIDES DDI dataset is dense, the majority of drugs in the test set appear in other pairs within the training set, which is standard for transductive clinical graph settings. We have documented this split setting in **Section 5.3.2 (Splitting)**.
 
 ---
 
 ### 4. Interpretation of Explainability results (Necessity Scores near Zero)
 > **Reviewer Comment**: *Attention and GNNExplainer preserve predictions well (high sufficiency) but removing their selected subgraphs barely changes predictions. Necessity values near zero suggest the identified edges are not truly causal. For GNNExplainer, a slightly negative necessity score is particularly concerning and warrants investigation*
 
-* **Response**: We thank the reviewer for raising this key point. We agree that Attention Rollout (necessity 0.0044) and GNNExplainer (necessity 0.0000) fail to identify causal subgraphs. In complex multi-relational graphs, heuristic rollout and unconstrained mutual information optimization tend to highlight highly active hub nodes (e.g. widely interacting proteins) rather than specific causal paths. When these hub nodes are deleted, the GNN simply routes message propagation through alternative, redundant links, resulting in a near-zero change in predictions. These methods thus provide descriptive (correlated) rather than causal explanations.
+* **Response**: We thank the reviewer for raising this key point. We agree that Attention Rollout (necessity 0.0044) and GNNExplainer (necessity 0.0000) fail to identify causal subgraphs. In complex multi-relational graphs, heuristic rollout and unconstrained mutual information optimization tend to highlight highly active hub nodes (e.g. widely interacting proteins) rather than specific paths. When these hub nodes are deleted, the GNN simply routes message propagation through alternative, redundant links, resulting in a near-zero change in predictions. These methods thus provide descriptive (correlated) rather than counterfactual explanations.
  
-  In contrast, KEC achieves a substantially higher necessity (Fidelity+) score of **0.0371**, indicating it identifies subgraphs that are causally essential to the GAT's predictions. We have updated **Section 5.6 (Discussion)** to emphasize this distinction between descriptive and causal explainers, and have explained PGExplainer's slightly negative necessity (-0.0045) as a structural artifact of mask perturbation in dense regions.
+  In contrast, KEC achieves a substantially higher necessity (Fidelity+) score of **0.0371**, demonstrating that its explanations behave as highly influential edges under a counterfactual perturbation framework. We have updated **Section 5.6 (Discussion)** to emphasize this distinction between descriptive and perturbation-based counterfactual explainers, and have explained PGExplainer's slightly negative necessity (-0.0045) as a structural artifact of mask perturbation in dense regions.
 
 ---
 
@@ -325,4 +325,60 @@ We thank the reviewer for the constructive critique. We have fully updated the m
 * **Response**: We have rerun all GNN ablation configurations (FULL, NO_PPI, NO_GNN) on the dense graph to full 100-epoch convergence and reported them in Table 5.5.2. Interestingly, even on the dense graph, the FULL model (0.8536 AUROC) performs slightly worse than the NO_PPI ablation (0.8544 AUROC) by 0.0008. 
   
   As explained in our revised discussion in **Section 5.6 point 5**, this reveals a critical conceptual insight: simply increasing biological network density does not guarantee that a standard GNN will learn and explain long-range pathways. Instead, GAT layers experience over-smoothing and noise propagation across dense interactomes. This suggests that architectural improvements (e.g. over-smoothing mitigation, relation-specific routing, or pathway-oriented objectives) are required to guide message-passing toward multi-hop pathways.
+
+---
+
+## Response to Journal Submission & Peer-Review Polishing Comments
+
+We have tightened the structural, methodological, and rhetorical framing of the manuscript to align with top-tier biomedical informatics and machine learning journal expectations. Below is a detailed summary of the updates made to address each peer-review concern:
+
+### 1. Refinement of Causality Claims & KEC Wording
+* **Reviewer Comment**: *The use of causal terminology (e.g., "necessary causal bottlenecks") when describing perturbation-based explanation metrics is over-strong, as the methods evaluate model perturbation surfaces rather than data-generating interventions.*
+* **Response**: We agree. We have revised the text in the manuscript and existing response blocks to replace absolute causal claims with precise perturbation-based terminology. Specifically, we now frame KEC's counterfactual subgraphs as "highly influential edges under a counterfactual perturbation framework" or "functional bottlenecks under model counterfactual evaluation" (Section 5.6 point 1). We also renamed the taxonomy objective in Section 5.6.2 to "Counterfactual Perturbation (KEC)" and replaced "critical causal pathways" with "critical perturbation-based pathways."
+
+### 2. Distinction Between Faithfulness and Biological Plausibility
+* **Reviewer Comment**: *The manuscript must clarify the conceptual distinction between explanation faithfulness (reflection of GNN decision logic) and biological plausibility (correspondence to biological reality).*
+* **Response**: We have added an explicit introductory paragraph to Section 5.6 (Discussion) to clarify this boundary:
+  > *"Importantly, these quantitative faithfulness metrics assess the degree to which explanation subgraphs reflect the GNN's internal predictive logic, whereas biological plausibility—evaluating whether the identified pathways correspond to true biological mechanisms—is evaluated separately via expert clinical review (Section 5.7)."*
+
+### 3. Empirical Caveat for PGExplainer's Negative Fidelity+ Value
+* **Reviewer Comment**: *The negative Fidelity+ value for PGExplainer implies that removing its selected edges increases prediction confidence. This is a concerning post-hoc speculation that must be qualified.*
+* **Response**: We agree that the noise-removal vs. distribution-shift mechanisms are post-hoc and require further study. We have appended the suggested qualifying sentence to Section 5.6 point 1 to protect the work from reviewer pushback:
+  > *"We leave a systematic investigation of this phenomenon (mask-induced distribution shift vs. redundancy removal) for future work."*
+
+### 4. Localized Motif Reinterpretation for Strict Connectivity Drops
+* **Reviewer Comment**: *The drop in strict connectivity across explainers should not be over-claimed as model pathway reasoning; instead, reframe it to localized motifs or explainer limitations.*
+* **Response**: We have revised the strict connectivity discussion in Section 5.6 point 3. Rather than indicating a failure of the explainers or confirming long-range pathway reasoning, we now write:
+  > *"This may indicate either (i) the learned predictor's reliance on highly localized interaction motifs (such as direct drug-target bindings) rather than routing signals along long-range biological pathways, or (ii) the inherent limitations of connectivity-constrained explanation methods under dense heterogeneous graphs."*
+
+### 5. Conditional Framing of PPI Ablation Performance Drop
+* **Reviewer Comment**: *The claim that PPI information introduces structural noise/oversmoothing is underdetermined without isolating confounding factors like feature noise or edge type imbalance.*
+* **Response**: We have reframed this conclusion conditionally in Section 5.5.2 and Section 5.6 point 5:
+  > *"This suggests a potential mismatch between graph topology complexity and message-passing capacity, which may arise from oversmoothing, noisy relational aggregation, or suboptimal weighting of PPI edges. Further studies are required to systematically isolate the confounding factors, such as feature noise or edge type imbalance, that contribute to this performance trade-off."*
+
+### 6. Softened Information Leakage Prevention Claims
+* **Reviewer Comment**: *The "zero leakage" and "leakage-free" claims are too absolute. Reframe to describe message-passing isolation.*
+* **Response**: We have revised Section 5.3.2 to use the suggested toned-down terminology:
+  > *"This design minimizes information leakage by excluding target DDI edges from message passing during the node representation learning step, ensuring no direct target-edge leakage in the message-passing stage."*
+  We also updated the response to Major Concern 3 in this document to maintain consistency.
+
+### 7. Completeness of GNNExplainer Technical Description
+* **Reviewer Comment**: *The description of GNNExplainer is incomplete without detailing stochastic mask sampling and node feature masking.*
+* **Response**: We have updated Section 5.2.2 (GNNExplainer) to formally define the optimization of both the soft edge mask $M_E$ and the node feature mask $M_X$, explain stochastic mask sampling during training, and clarify how our evaluation freezes $M_X$ to isolate structural topological pathways.
+
+### 8. Clarification of Excluded Explainer Families
+* **Reviewer Comment**: *Explain why gradient-based or RL-based explainers were not included in the baseline suite.*
+* **Response**: We have updated Section 5.2.6 (Excluded Explainer Families) to explicitly clarify the reasons for their exclusion:
+  > *"We do not include gradient-based (such as Integrated Gradients) or reinforcement learning-based (such as SubgraphX) explainers due to scalability and stability constraints on large heterogeneous graphs."*
+
+### 9. Structural Restructuring of Sections 5.3 and 5.5
+* **Reviewer Comment**: *Restructure Section 5.3 into Data, Splitting, and Baselines to improve clarity. Additionally, separate Results into Explanation, Ablation, and Side-Effect subsections.*
+* **Response**: We have completely restructured Section 5.3 as requested:
+  - **Section 5.3.1 (Data)**: Consolidates clinical knowledge graph statistics and STRING mapping preprocessing details.
+  - **Section 5.3.2 (Splitting)**: Consolidates the transductive pair-level splitting strategy, drug node overlap statistics, and target DDI edge masking logic.
+  - **Section 5.3.3 (Baselines)**: Details the three comparison GNN ablation topologies.
+  We also restructured and renamed the subsections of Section 5.5:
+  - **Section 5.5.1 (Explanation Results)**: Compiles faithfulness and connectivity metrics.
+  - **Section 5.5.2 (Ablation Results)**: Documents the network ablation study results.
+  - **Section 5.5.3 (Side-Effect Results)**: Details the per-side-effect test performance and prevalence analysis.
 
