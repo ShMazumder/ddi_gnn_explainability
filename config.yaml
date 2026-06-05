@@ -7,6 +7,8 @@ data:
   sider_tsv: "data/raw/sider.tsv"
   string_links: "data/raw/9606.protein.links.v12.0.txt"
   string_mapping: "data/raw/protein.aliases.v12.0.txt"
+  limit_side_effects: 50
+
 
 model:
   drug_hidden: 128

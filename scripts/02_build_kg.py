@@ -146,7 +146,8 @@ def build_graph():
         
         # Load mapping if it exists
         mapping_path = raw_dir / "protein.aliases.v12.0.txt"
-        ensp_to_uniprot = {}
+        from collections import defaultdict
+        ensp_to_uniprot = defaultdict(set)
         import re
         UNIPROT_AC_PATTERN = re.compile(
             r'^([OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9][A-Z][A-Z0-9]{2}[0-9]|[A-NR-Z][0-9][A-Z][A-Z0-9]{2}[0-9][A-Z][A-Z0-9]{2}[0-9])$'
@@ -167,11 +168,10 @@ def build_graph():
                         if any(x in source_upper for x in ["UNIPROT", "SWISS-PROT", "SWISSPROT", "TREMBL"]):
                             alias_upper = alias.upper()
                             if UNIPROT_AC_PATTERN.match(alias_upper):
-                                ensp_to_uniprot[string_id] = alias_upper
+                                ensp_to_uniprot[string_id].add(alias_upper)
 
         print(f"Loaded {len(ensp_to_uniprot)} ENSP-to-UniProt mappings.")
         print(f"Sample mapping keys: {list(ensp_to_uniprot.keys())[:10]}")
-        print(f"Sample mapping values: {list(ensp_to_uniprot.values())[:10]}")
         print(f"Sample protein_to_idx keys: {list(protein_to_idx.keys())[:10]}")
 
         with open(string_path, 'r', encoding='utf-8') as f:
@@ -182,18 +182,23 @@ def build_graph():
                 if not row or len(row) < 3:
                     continue
                 score = int(row[2])
-                if score >= 700:
+                if score >= 400: # Medium confidence threshold
                     p1 = row[0].split('.')[-1]
                     p2 = row[1].split('.')[-1]
-                    # Map to UniProt ID first
-                    u1 = ensp_to_uniprot.get(p1, p1)
-                    u2 = ensp_to_uniprot.get(p2, p2)
-                    if u1 in protein_to_idx and u2 in protein_to_idx:
-                        ppi_edges.append((protein_to_idx[u1], protein_to_idx[u2]))
+                    # Map to UniProt IDs (could be multiple due to isoforms/aliases)
+                    u1_set = ensp_to_uniprot.get(p1, {p1})
+                    u2_set = ensp_to_uniprot.get(p2, {p2})
+                    for u1 in u1_set:
+                        u1_clean = u1.split('-')[0]
+                        for u2 in u2_set:
+                            u2_clean = u2.split('-')[0]
+                            if u1_clean in protein_to_idx and u2_clean in protein_to_idx:
+                                ppi_edges.append((protein_to_idx[u1_clean], protein_to_idx[u2_clean]))
     
     # Process TWOSIDES
     twosides_path = raw_dir / "TWOSIDES.csv"
-    pair_list, labels, side_effects = process_twosides(twosides_path, drug_to_idx, rxcui_to_db, limit_se=10)
+    limit_se = config["data"].get("limit_side_effects", 50)
+    pair_list, labels, side_effects = process_twosides(twosides_path, drug_to_idx, rxcui_to_db, limit_se=limit_se)
     num_side_effects = len(side_effects)
 
     # Build HeteroData

@@ -10,8 +10,9 @@ from explanations.pgexplainer_wrapper import run_pgexplainer
 from explanations.kec import run_kec
 from faithfulness.metrics import (
     sufficiency, necessity, fidelity_plus, fidelity_minus, sparsity,
-    check_connectivity_and_dist
+    check_connectivity_and_dist, check_lenient_connectivity_and_dist
 )
+from explanations.kec import get_k_hop_subgraph
 
 def build_synthetic_data():
     data = HeteroData()
@@ -119,8 +120,10 @@ def test_pipeline():
         fid_plus_scores = []
         fid_minus_scores = []
         sparsity_scores = []
-        conn_scores = []
-        hop_scores = []
+        conn_strict_scores = []
+        hop_strict_scores = []
+        conn_lenient_scores = []
+        hop_lenient_scores = []
         
         for i, expl in enumerate(explanations):
             if expl is None:
@@ -155,23 +158,30 @@ def test_pipeline():
             fid_minus_scores.append(fid_m)
 
             # Sparsity
-            expl_sparsity = sparsity(expl_edges, hom_edge.size(1))
+            d1, d2 = sample_pairs[i].tolist()
+            _, subgraph_mask = get_k_hop_subgraph(hom_edge.cpu(), [d1, d2], k=2)
+            expl_sparsity = sparsity(expl_edges, subgraph_mask)
             sparsity_scores.append(expl_sparsity)
 
-            # Path connectedness and hop distance
-            d1, d2 = sample_pairs[i].tolist()
-            is_conn, hop_dist = check_connectivity_and_dist(expl_edges, d1, d2, hom_edge)
-            conn_scores.append(float(is_conn))
-            if is_conn:
-                hop_scores.append(float(hop_dist))
+            # Strict connectedness and hop distance
+            is_strict, strict_hop = check_connectivity_and_dist(expl_edges, d1, d2, hom_edge)
+            conn_strict_scores.append(float(is_strict))
+            if is_strict:
+                hop_strict_scores.append(float(strict_hop))
+            
+            # Lenient connectedness and hop distance
+            is_lenient, lenient_hop = check_lenient_connectivity_and_dist(expl_edges, d1, d2, hom_edge)
+            conn_lenient_scores.append(float(is_lenient))
+            if is_lenient:
+                hop_lenient_scores.append(float(lenient_hop))
             
         print(f"  Avg Sufficiency: {np.mean(suff_scores) if suff_scores else 0.0:.4f}")
         print(f"  Avg Necessity: {np.mean(nec_scores) if nec_scores else 0.0:.4f}")
         print(f"  Avg Fidelity+: {np.mean(fid_plus_scores) if fid_plus_scores else 0.0:.4f}")
         print(f"  Avg Fidelity-: {np.mean(fid_minus_scores) if fid_minus_scores else 0.0:.4f}")
         print(f"  Avg Sparsity: {np.mean(sparsity_scores) if sparsity_scores else 0.0:.4f}")
-        print(f"  Connected %: {np.mean(conn_scores) * 100.0 if conn_scores else 0.0:.1f}%")
-        print(f"  Avg Hop Dist: {np.mean(hop_scores) if hop_scores else -1.0:.2f}")
+        print(f"  Strict Connected %: {np.mean(conn_strict_scores) * 100.0 if conn_strict_scores else 0.0:.1f}% | Hop: {np.mean(hop_strict_scores) if hop_strict_scores else -1.0:.2f}")
+        print(f"  Lenient Connected %: {np.mean(conn_lenient_scores) * 100.0 if conn_lenient_scores else 0.0:.1f}% | Hop: {np.mean(hop_lenient_scores) if hop_lenient_scores else -1.0:.2f}")
         
     print("\nAll pipeline components tested successfully on bidirectional graph!")
 

@@ -86,30 +86,37 @@ def fidelity_minus(full_pred, subgraph_pred):
     return (full_pred - subgraph_pred).mean().item()
 
 
-def sparsity(edge_mask, total_edges):
+def sparsity(edge_mask, subgraph_mask):
     """
-    Fraction of edges included in the explanation.
-
-    Lower sparsity means a more concise explanation.
+    Fraction of candidate subgraph edges omitted from the explanation.
 
     Args:
         edge_mask: binary mask or importance scores (Tensor)
-        total_edges: total number of edges in the graph
+        subgraph_mask: boolean/binary mask of the candidate local subgraph (Tensor)
 
     Returns:
-        float: sparsity ratio in [0, 1]
+        float: local sparsity in [0, 1]
     """
     if isinstance(edge_mask, torch.Tensor):
-        num_selected = (edge_mask > 0.5).sum().item()
+        edge_bool = edge_mask > 0.5
+        sub_bool = subgraph_mask.to(edge_bool.device) > 0.5
+        selected_in_subgraph = edge_bool & sub_bool
+        num_selected = selected_in_subgraph.sum().item()
+        subgraph_edges_count = sub_bool.sum().item()
     else:
-        num_selected = sum(1 for x in edge_mask if x > 0.5)
-    return num_selected / max(total_edges, 1)
+        edge_bool = np.array(edge_mask) > 0.5
+        sub_bool = np.array(subgraph_mask) > 0.5
+        selected_in_subgraph = edge_bool & sub_bool
+        num_selected = int(selected_in_subgraph.sum())
+        subgraph_edges_count = int(sub_bool.sum())
+        
+    return 1.0 - (num_selected / max(subgraph_edges_count, 1))
 
 
 def check_connectivity_and_dist(expl_edges_mask, d1, d2, hom_edge):
     """
     Check if the two query drugs (d1, d2) are connected via selected explanation edges
-    in hom_edge, and if so, return the shortest path length (hop distance).
+    in hom_edge (Strict Connectedness), and if so, return the shortest path length.
     """
     from collections import defaultdict
     adj = defaultdict(list)
@@ -138,3 +145,66 @@ def check_connectivity_and_dist(expl_edges_mask, d1, d2, hom_edge):
                 visited[neighbor] = dist + 1
                 queue.append(neighbor)
     return False, -1
+
+
+def check_lenient_connectivity_and_dist(expl_edges_mask, d1, d2, hom_edge):
+    """
+    Check if the selected explanation edges are a subset of some d1-to-d2 path
+    in the original graph (within 4 hops).
+    """
+    if isinstance(expl_edges_mask, torch.Tensor):
+        selected_indices = torch.where(expl_edges_mask > 0.5)[0].tolist()
+    else:
+        selected_indices = [idx for idx, val in enumerate(expl_edges_mask) if val > 0.5]
+    
+    if not selected_indices:
+        return False, -1
+        
+    selected_edges_set = set()
+    for idx in selected_indices:
+        u, v = hom_edge[0, idx].item(), hom_edge[1, idx].item()
+        selected_edges_set.add(tuple(sorted((u, v))))
+        
+    src = hom_edge[0].tolist()
+    dst = hom_edge[1].tolist()
+    
+    from collections import defaultdict
+    full_adj = defaultdict(list)
+    for idx, (u, v) in enumerate(zip(src, dst)):
+        full_adj[u].append((v, idx))
+        
+    paths_found = []
+    
+    def dfs(curr, path_nodes, path_edges):
+        if curr == d2:
+            paths_found.append((list(path_nodes), list(path_edges)))
+            return
+        if len(path_nodes) > 4: # max length 4 (k=2)
+            return
+            
+        for neighbor, edge_idx in full_adj[curr]:
+            if neighbor not in path_nodes:
+                path_nodes.append(neighbor)
+                path_edges.append(edge_idx)
+                dfs(neighbor, path_nodes, path_edges)
+                path_edges.pop()
+                path_nodes.pop()
+                
+    dfs(d1, [d1], [])
+    
+    best_dist = -1
+    for p_nodes, p_edges in paths_found:
+        path_edges_set = set()
+        for idx in p_edges:
+            u, v = src[idx], dst[idx]
+            path_edges_set.add(tuple(sorted((u, v))))
+            
+        if selected_edges_set.issubset(path_edges_set):
+            dist = len(p_edges)
+            if best_dist == -1 or dist < best_dist:
+                best_dist = dist
+                
+    if best_dist != -1:
+        return True, best_dist
+    return False, -1
+
