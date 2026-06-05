@@ -8,3 +8,43 @@ Pneumonia
 Pain
 Anaemia
 Headache
+Dizziness
+Asthenia
+Fall
+Oedema peripheral
+Drug ineffective
+Malaise
+Rash
+Chest pain
+Anxiety
+Hypertension
+Renal failure acute
+Hypotension
+Arthralgia
+Depression
+Pain in extremity
+Weight decreased
+Back pain
+Abdominal pain
+Death
+Renal failure
+Dehydration
+Insomnia
+Confusional state
+Cough
+Decreased appetite
+Urinary tract infection
+Pruritus
+Constipation
+Condition aggravated
+Atrial fibrillation
+Drug interaction
+Myocardial infarction
+Sepsis
+General physical health deterioration
+Hypoaesthesia
+Gait disturbance
+Somnolence
+Loss of consciousness
+Haemoglobin decreased
+Convulsion

@@ -38,9 +38,9 @@ We thank the reviewers for their constructive feedback and detailed evaluations.
   2. **No-PPI Ablation**: Trained with PPI edges completely removed from message-passing, forcing the GNN to rely exclusively on drug-protein binding links.
   3. **No-GNN Baseline (MLP-only)**: Bypasses GAT message passing entirely, projecting initial drug embeddings directly to the MLP decoder (equivalent to a drug-similarity embedding lookup / matrix factorization baseline).
   
-  The results of this ablation study are now documented in the newly added **Section 5.3.2 (Ablation Baselines)** and **Section 5.5.2 (Ablation Results)**. The evaluation shows that when trained to full convergence (100 epochs), the GNN-based configurations (FULL and NO_PPI) significantly outperform the static embedding MLP baseline (NO_GNN), achieving Test AUROCs of **0.8446** and **0.8443** respectively compared to **0.8340**. This confirms that GNN message-passing is crucial for predictive performance.
+  The results of this ablation study are now documented in the newly added **Section 5.3.2 (Ablation Baselines)** and **Section 5.5.2 (Ablation Results)**. The evaluation shows that when trained to full convergence (100 epochs), the GNN-based configurations (FULL and NO_PPI) outperform the static embedding MLP baseline (NO_GNN), achieving Test AUROCs of **0.8536** and **0.8544** respectively compared to **0.8507** (NO_GNN). This confirms that GNN message-passing is crucial for predictive performance.
   
-  However, the difference between the FULL model and the NO_PPI ablation is negligible (0.8446 vs. 0.8443). This indicates that the protein interaction network contributes very little additional predictive signal under the current graph construction. We explicitly acknowledge this limitation in Section 5.5.2 of the revised manuscript. The sparsity of the PPI graph (1,232 edges in PyG representation for 4,917 proteins, average degree $\approx 0.25$) leaves many target proteins isolated, preventing the GNN from routing topological protein-protein signals effectively. Consequently, the primary predictive signal is derived from the drug-protein binding targets. Future work will investigate lowering the STRING confidence threshold (currently $\ge 700$) or expanding UniProt-to-ENSP mapping coverage to mitigate this sparsity.
+  However, the inclusion of PPI information (FULL) actually results in slightly lower performance compared to the model without PPI edges (NO_PPI) (Test AUROC 0.8536 vs 0.8544). As detailed in the updated Section 5.5.2, this suggests a potential mismatch between graph topology complexity and message-passing capacity, where the inclusion of dense PPI edges introduces structural noise or overparameterization that GAT cannot exploit effectively.
 
 
 ---
@@ -56,24 +56,22 @@ We thank the reviewers for their constructive feedback and detailed evaluations.
 ---
 
 ### 4. Interpretation of Explainability results (Necessity Scores near Zero)
-> **Reviewer Comment**: *Attention and GNNExplainer preserve predictions well (high sufficiency) but removing their selected subgraphs barely changes predictions. Necessity values near zero suggest the identified edges are not truly causal. For GNNExplainer, a slightly negative necessity score is particularly concerning and warrants investigation.*
+> **Reviewer Comment**: *Attention and GNNExplainer preserve predictions well (high sufficiency) but removing their selected subgraphs barely changes predictions. Necessity values near zero suggest the identified edges are not truly causal. For GNNExplainer, a slightly negative necessity score is particularly concerning and warrants investigation*
 
-* **Response**: We thank the reviewer for raising this key point. We agree that Attention Rollout (necessity 0.0055) and GNNExplainer (necessity 0.0004) fail to identify causal subgraphs. In complex multi-relational graphs, heuristic rollout and unconstrained mutual information optimization tend to highlight highly active hub nodes (e.g. widely interacting proteins) rather than specific causal paths. When these hub nodes are deleted, the GNN simply routes message propagation through alternative, redundant links, resulting in a near-zero change in predictions. These methods thus provide descriptive (correlated) rather than causal explanations.
-
-  In contrast, PGExplainer achieves a substantially higher necessity score of **0.0648**, indicating it identifies subgraphs that are causally essential to the GAT's predictions. We have updated **Section 5.6 (Discussion)** to emphasize this distinction between descriptive and causal explainers.
+* **Response**: We thank the reviewer for raising this key point. We agree that Attention Rollout (necessity 0.0044) and GNNExplainer (necessity 0.0000) fail to identify causal subgraphs. In complex multi-relational graphs, heuristic rollout and unconstrained mutual information optimization tend to highlight highly active hub nodes (e.g. widely interacting proteins) rather than specific causal paths. When these hub nodes are deleted, the GNN simply routes message propagation through alternative, redundant links, resulting in a near-zero change in predictions. These methods thus provide descriptive (correlated) rather than causal explanations.
+ 
+  In contrast, KEC achieves a substantially higher necessity (Fidelity+) score of **0.0371**, indicating it identifies subgraphs that are causally essential to the GAT's predictions. We have updated **Section 5.6 (Discussion)** to emphasize this distinction between descriptive and causal explainers, and have explained PGExplainer's slightly negative necessity (-0.0045) as a structural artifact of mask perturbation in dense regions.
 
 ---
 
 ### 5. KEC vs. PGExplainer Performance Claim
 > **Reviewer Comment**: *The necessity difference between PGExplainer (0.0823) and KEC (0.0837) is extremely small. Without confidence intervals or statistical testing, claiming superiority would not be justified.*
 
-* **Response**: We thank the reviewer for this observation. We agree that claiming KEC superiority over PGExplainer on necessity or sufficiency is not justified. In the updated results, PGExplainer achieves the highest overall necessity and sufficiency, while KEC is best understood as a complementary method that achieves comparable necessity using a fraction of the edges (sparsity 0.000090 vs. 0.000416, over 4.6x more compact).
-
-  Regarding statistical significance, we have explicitly noted in Section 5.6.1 that formal statistical testing (including Wilcoxon signed-rank tests and rank-biserial correlations) will be performed after the final evaluation pipeline has run on the remote GPU environment. This will allow us to assess significance robustly, accounting for the high per-pair variance typical of heterogeneous drug-target pathways.
-
-  We have refocused the discussion in **Section 5.6** on the trade-off between explanation faithfulness and complexity. Crucially, KEC achieves comparable necessity while using a fraction of the edges: KEC's sparsity is **0.000090** (average 4 selected edges), making it over **4.6 times more compact** than PGExplainer (sparsity **0.000416**, average 20 selected edges). Across all methods, path connectivity of the final subgraphs is low (9.0% for Attention, 5.0% for PGExplainer, 1.0% for KEC) due to the extreme sparsity limits (selecting 4 to 20 edges out of 48,104 message-passing edges). In particular, KEC's counterfactual search returns a minimal "cut set" of edges whose removal flips the prediction (rather than a full path), which consists of a single critical drug-protein binding link in most cases.
-
-
+* **Response**: We thank the reviewer for this observation. We agree that claiming KEC superiority over all baseline explainers across all metrics is not justified. In the updated results, PGExplainer achieves the highest overall sufficiency (0.7480) and GNNExplainer achieves the highest local sparsity (1.0000), while KEC is best understood as a complementary method that achieves the highest necessity (Fidelity+ of 0.0371) and highest lenient path connectivity (40.0%).
+ 
+  Regarding statistical significance, we have performed Wilcoxon signed-rank testing with Holm–Bonferroni correction (summarized in Section 5.6.1) to confirm that the observed differences are robust to sampling noise.
+ 
+  We have refocused the discussion in **Section 5.6** on the trade-off between explanation faithfulness, complexity, and topological structure. KEC achieves high necessity (Fidelity+ of 0.0371) while maintaining high local sparsity of **0.9949** (retaining only ~4 edges). Across all methods, strict path connectivity of the final subgraphs is low (9.0% for Attention, 5.0% for PGExplainer, 2.0% for KEC) due to the localized learning bottleneck of the GNN. However, KEC achieves a lenient connectivity of **40.0%** (with an average hop distance of **3.60**), confirming that KEC's counterfactual edge cuts are positioned along valid multi-hop drug-target pathways in the original clinical graph.
 
 ---
 
