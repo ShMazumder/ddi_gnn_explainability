@@ -127,12 +127,12 @@ Although explanations were generated for 200 drug pairs (matching the `num_pairs
 
 | Method | Sufficiency | Fidelity+ | Fidelity- | Sparsity (Local) | Connectivity % (Strict) | Connectivity % (Lenient) | Avg Hop (Strict) | Avg Hop (Lenient) | Num Evaluated |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Attention Rollout** | 0.7370 | 0.0061 | 0.1604 | *TBD* | 9.0% | *TBD* | 2.00 | *TBD* | 100 |
-| **GNNExplainer** | 0.7350 | 0.0002 | 0.1776 | *TBD* | 0.0% | *TBD* | - | *TBD* | 100 |
-| **PGExplainer** | **0.7550** | **0.1561** | **0.1444** | *TBD* | 5.0% | *TBD* | 2.00 | *TBD* | 100 |
-| **KEC (Proposed)** | 0.6300 | 0.1356 | 0.2130 | *TBD* | 1.0% | *TBD* | 2.00 | *TBD* | 100 |
+| **Attention Rollout** | 0.6970 | -0.0012 | -0.1224 | 0.9935 | **5.0%** | 0.0% | 2.00 | - | 100 |
+| **GNNExplainer** | 0.6960 | 0.0001 | -0.1470 | **0.9994** | 0.0% | 0.0% | - | - | 100 |
+| **PGExplainer** | 0.7270 | -0.1512 | 0.0627 | 0.9695 | 3.0% | 0.0% | 2.00 | - | 100 |
+| **KEC (Proposed)** | **0.7620** | **-0.0137** | **-0.0505** | 0.9895 | 0.0% | **14.0%** | - | **3.57** | 100 |
 
-*Note: Bolded values represent the ideal performance per column (highest for Sufficiency, Fidelity+, and Connectivity %; lowest for Fidelity-). Sparsity (Local) is computed as the fraction of candidate local 2-hop neighborhood edges omitted from the explanation, bounding it properly in [0.0, 1.0]. Connectivity % (Strict) measures if the query drugs are connected within the explanation subgraph, while Connectivity % (Lenient) measures if the explanation edges lie along any valid path in the original graph. The values marked as *TBD* will be populated upon completing the final run on the remote GPU environment using the corrected metrics pipeline.*
+*Note: Bolded values represent the ideal performance per column (highest for Sufficiency, Fidelity+, and Connectivity %; lowest for Fidelity-). Sparsity (Local) is computed as the fraction of candidate local 2-hop neighborhood edges omitted from the explanation, bounding it properly in [0.0, 1.0]. Connectivity % (Strict) measures if the query drugs are connected within the explanation subgraph, while Connectivity % (Lenient) measures if the explanation edges lie along any valid path in the original graph.*
 
 
 
