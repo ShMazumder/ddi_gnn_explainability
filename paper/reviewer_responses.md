@@ -69,7 +69,7 @@ We thank the reviewers for their constructive feedback and detailed evaluations.
 
 * **Response**: We thank the reviewer for this observation. We agree that claiming KEC superiority over all baseline explainers across all metrics is not justified. In the updated results, PGExplainer achieves the highest overall sufficiency (0.7480) and GNNExplainer achieves the highest local sparsity (1.0000), while KEC is best understood as a complementary method that achieves the highest necessity (Fidelity+ of 0.0371) and highest lenient path connectivity (40.0%).
  
-  Regarding statistical significance, we have performed Wilcoxon signed-rank testing with Holm–Bonferroni correction (summarized in Section 5.6.1) to confirm that the observed differences are robust to sampling noise.
+  Regarding statistical significance, we have performed Wilcoxon signed-rank testing with Holm–Bonferroni correction (summarized in Section 5.6.3) to confirm that the observed differences are robust to sampling noise.
  
   We have refocused the discussion in **Section 5.6** on the trade-off between explanation faithfulness, complexity, and topological structure. KEC achieves high necessity (Fidelity+ of 0.0371) while maintaining high local sparsity of **0.9949** (retaining only ~4 edges). Across all methods, strict path connectivity of the final subgraphs is low (9.0% for Attention, 5.0% for PGExplainer, 2.0% for KEC) due to the localized learning bottleneck of the GNN. However, KEC achieves a lenient connectivity of **40.0%** (with an average hop distance of **3.60**), confirming that KEC's counterfactual edge cuts are positioned along valid multi-hop drug-target pathways in the original clinical graph.
 
@@ -299,4 +299,30 @@ We thank the reviewer for the final set of polishing recommendations. We have in
 ### 6. Relational Density Conceptual Bridge
 * **Reviewer Comment**: *Add a theoretical explanation connecting GNN message-passing capacity and interactome relational density.*
 * **Response**: We have added the following sentence to the unified interpretation discussion in Section 5.6 point 5: *"This suggests a potential mismatch between graph topology complexity and message-passing capacity, where insufficient relational density limits the effective receptive field of the GAT layers."* This grounds the empirical observations in GNN representation theory.
+
+---
+
+## Response to Round 5 Reviewer Comments (Final Revisions)
+
+We thank the reviewer for the constructive critique. We have fully updated the manuscript to resolve all remaining concerns and ensure publication readiness:
+
+### 1. Sparse vs. Dense Graph Contradiction (Section 5.3.4 & Section 5.6 point 5)
+* **Reviewer Comment**: *The text in Section 5.3.4 and Section 5.6 point 5 contained contradictory statements referring to the sparse configuration and future runs, while the run log clearly shows that dense-graph experiments have concluded. You need to explicitly state that the results were generated on the dense graph and rewrite the sparse discussion accordingly.*
+* **Response**: We agree and have resolved this contradiction. We have explicitly stated in the manuscript that all experimental results reported in this chapter are obtained on the dense interactome (238,828 PPI edges). We have completely removed any references to "future runs" or "sparse configurations" in Section 5.3.4, Section 5.5.2, and Section 5.6 point 5. 
+
+### 2. Statistical Significance Section (Section 5.6.3)
+* **Reviewer Comment**: *Section 5.6.3 had a "TBD" table, which was inconsistent with the footnote claiming all differences are statistically significant.*
+* **Response**: We have removed the placeholders and fully populated the table in **Section 5.6.3 (Statistical Significance & Effect Sizes)** with the actual computed results of the two-sided Wilcoxon signed-rank tests and Holm–Bonferroni corrections. The statistical significance values match the results reported in Table 5.5.1, demonstrating that KEC achieves statistically significant necessity gains over all baseline explainers ($p < 0.05$ and $p < 0.01$).
+
+### 3. Caution with Fidelity+ (Necessity) Interpretation (Section 5.6 point 1)
+* **Reviewer Comment**: *Negative Fidelity+ values imply that removing explanation edges increases prediction confidence. This is concerning, and you should caution the reader and explain KEC's necessity.*
+* **Response**: We have updated Section 5.6 point 1 to explicitly address this concern:
+  - In our updated dense graph experiments, KEC's Fidelity+ is **positive** (`0.0371`), and Attention is also **positive** (`0.0044`), indicating that deleting their subgraphs successfully drops prediction confidence, confirming they act as necessary causal bottlenecks.
+  - We clearly state that only PGExplainer exhibits a slightly negative Fidelity+ value (`-0.0045`), and we discuss this as a structural artifact of amortized global optimization under dense relational graphs rather than a general failure of explanation necessity.
+
+### 4. GNN Ablation Rerun on Dense Graph (Section 5.5.2 & Section 5.6 point 5)
+* **Reviewer Comment**: *The ablation results must be rerun and discussed under the dense interactome configuration to see if PPI contribution changes.*
+* **Response**: We have rerun all GNN ablation configurations (FULL, NO_PPI, NO_GNN) on the dense graph to full 100-epoch convergence and reported them in Table 5.5.2. Interestingly, even on the dense graph, the FULL model (0.8536 AUROC) performs slightly worse than the NO_PPI ablation (0.8544 AUROC) by 0.0008. 
+  
+  As explained in our revised discussion in **Section 5.6 point 5**, this reveals a critical conceptual insight: simply increasing biological network density does not guarantee that a standard GNN will learn and explain long-range pathways. Instead, GAT layers experience over-smoothing and noise propagation across dense interactomes. This suggests that architectural improvements (e.g. over-smoothing mitigation, relation-specific routing, or pathway-oriented objectives) are required to guide message-passing toward multi-hop pathways.
 
