@@ -11,6 +11,7 @@ import pandas as pd
 from pathlib import Path
 
 from .metrics import sufficiency, necessity, fidelity_plus, fidelity_minus, sparsity
+from explanations.kec import get_k_hop_subgraph
 
 
 def evaluate_single_explanation(model, edge_index, num_drugs, drug_pair,
@@ -64,14 +65,15 @@ def evaluate_single_explanation(model, edge_index, num_drugs, drug_pair,
     else:
         compl_pred = torch.zeros_like(full_pred)
 
-    total_edges = edge_index.size(1)
+    d1, d2 = drug_pair.tolist()
+    _, subgraph_mask = get_k_hop_subgraph(edge_index.cpu(), [d1, d2], k=2)
 
     return {
         'sufficiency': sufficiency(full_pred, expl_pred, threshold),
         'necessity': necessity(full_pred, compl_pred, threshold),
         'fidelity_plus': fidelity_plus(full_pred, compl_pred),
         'fidelity_minus': fidelity_minus(full_pred, expl_pred),
-        'sparsity': sparsity(edge_mask, total_edges)
+        'sparsity': sparsity(edge_mask, subgraph_mask)
     }
 
 

@@ -30,10 +30,10 @@ def plot_faithfulness_comparison(results_path, output_dir):
     axes[0].set_xlabel('')
     axes[0].set_ylim(0, 1)
 
-    # Necessity
-    sns.barplot(data=df, x='method', y='necessity', ax=axes[1], hue='method', palette='magma', legend=False)
-    axes[1].set_title('Necessity by Method')
-    axes[1].set_ylabel('Necessity Score')
+    # Fidelity+
+    sns.barplot(data=df, x='method', y='fidelity_plus', ax=axes[1], hue='method', palette='magma', legend=False)
+    axes[1].set_title('Fidelity+ by Method')
+    axes[1].set_ylabel('Fidelity+ Score')
     axes[1].set_xlabel('')
 
     plt.tight_layout()

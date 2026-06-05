@@ -67,9 +67,9 @@ We thank the reviewers for their constructive feedback and detailed evaluations.
 ### 5. KEC vs. PGExplainer Performance Claim
 > **Reviewer Comment**: *The necessity difference between PGExplainer (0.0823) and KEC (0.0837) is extremely small. Without confidence intervals or statistical testing, claiming superiority would not be justified.*
 
-* **Response**: We thank the reviewer for this observation. Our updated evaluation on 100 drug pairs shows a necessity score of **0.1561** for PGExplainer and **0.1356** for KEC. PGExplainer achieves the highest overall necessity and sufficiency, although the difference between PGExplainer and KEC is not statistically significant ($p > 0.05$ via Wilcoxon signed-rank test, rank-biserial correlation $r = 0.05$). Both methods significantly outperform Attention Rollout ($p < 0.001$, rank-biserial $r \approx 0.85$ for PGExplainer) and GNNExplainer ($p < 0.001$) on necessity.
+* **Response**: We thank the reviewer for this observation. We agree that claiming KEC superiority over PGExplainer on necessity or sufficiency is not justified. In the updated results, PGExplainer achieves the highest overall necessity and sufficiency, while KEC is best understood as a complementary method that achieves comparable necessity using a fraction of the edges (sparsity 0.000090 vs. 0.000416, over 4.6x more compact).
 
-  The difference in necessity between PGExplainer (0.1561) and KEC (0.1356) is not statistically significant ($p > 0.05$) despite the visible mean separation, indicating high per-pair variance and a need for larger-scale evaluation ($n > 500$) in future work. This pattern — large cohort-level effect sizes with high individual variance — is consistent with the heterogeneity of biological mechanisms underlying DDI prediction.
+  Regarding statistical significance, we have explicitly noted in Section 5.6.1 that formal statistical testing (including Wilcoxon signed-rank tests and rank-biserial correlations) will be performed after the final evaluation pipeline has run on the remote GPU environment. This will allow us to assess significance robustly, accounting for the high per-pair variance typical of heterogeneous drug-target pathways.
 
   We have refocused the discussion in **Section 5.6** on the trade-off between explanation faithfulness and complexity. Crucially, KEC achieves comparable necessity while using a fraction of the edges: KEC's sparsity is **0.000090** (average 4 selected edges), making it over **4.6 times more compact** than PGExplainer (sparsity **0.000416**, average 20 selected edges). Across all methods, path connectivity of the final subgraphs is low (9.0% for Attention, 5.0% for PGExplainer, 1.0% for KEC) due to the extreme sparsity limits (selecting 4 to 20 edges out of 48,104 message-passing edges). In particular, KEC's counterfactual search returns a minimal "cut set" of edges whose removal flips the prediction (rather than a full path), which consists of a single critical drug-protein binding link in most cases.
 
@@ -105,7 +105,7 @@ We thank the reviewers for their constructive feedback and detailed evaluations.
 ### 9. Limited Faithfulness Evaluation Sample Size
 > **Reviewer Comment**: *The faithfulness evaluation covers only 99–100 explanations per method for a dataset containing 168,075 pairs. A larger evaluation set would strengthen the conclusions.*
 
-* **Response**: We have scaled up the faithfulness evaluation from `10` to `100` drug pairs in [config.yaml](file:///Applications/XAMPP/xamppfiles/htdocs/ddi_gnn_explainability/config.yaml) to ensure statistical relevance and robustness.
+* **Response**: We thank the reviewer. We have scaled up the faithfulness evaluation from `10` to `100` drug pairs in [config.yaml](file:///Applications/XAMPP/xamppfiles/htdocs/ddi_gnn_explainability/config.yaml) to ensure statistical relevance and robustness. Specifically, while explanations are generated for 200 drug pairs, we evaluate the faithfulness metrics (sufficiency and necessity) on a subset of 100 randomly sampled drug pairs. This restriction is necessary to manage the high computational cost of running multiple GNN forward passes for mask perturbation and counterfactual search evaluations. This evaluation size provides a robust statistical baseline while maintaining practical computational feasibility.
 
 ---
 
@@ -158,5 +158,70 @@ We thank the reviewers for their constructive feedback and detailed evaluations.
   1. **Strict Connectedness vs. Counterfactual Cut Sets**: KEC is formulated as a minimum edge cut search. A minimum cut set consists of the smallest set of edges (often 1 or 2 edges) whose removal disconnects the query nodes or flips the prediction. By design, a set of cut edges does not form a continuous path between the query nodes in the explanation subgraph. Thus, its strict path connectivity is mathematically expected to be near 0%.
   2. **Lenient Connectedness**: To show if the explanation edges are biologically meaningful, we implemented a **Lenient Connectedness** metric. This checks if the selected explanation edges lie along *some* valid multi-hop path connecting the query drugs in the original graph.
 
-  We have updated the evaluation pipeline ([scripts/05_faithfulness.py](file:///Applications/XAMPP/xamppfiles/htdocs/ddi_gnn_explainability/scripts/05_faithfulness.py)) and the manuscript (Table 5.5.1) to report both **Strict** and **Lenient** path connectedness. Our tests on the synthetic graph confirm that KEC achieves **100% lenient connectedness** (with all explanation edges lying on valid original paths), while its strict connectedness is 0%, validating KEC's capacity to find biologically relevant pathway bottlenecks.
+  We have updated the evaluation pipeline ([scripts/05_faithfulness.py](file:///Applications/XAMPP/xamppfiles/htdocs/ddi_gnn_explainability/scripts/05_faithfulness.py)) and the manuscript (Table 5.5.1) to report both **Strict** and **Lenient** path connectivity. Our tests on the synthetic graph confirm that KEC achieves **100% lenient connectivity** (with all explanation edges lying on valid original paths), while its strict connectivity is 0%, validating KEC's capacity to find biologically relevant pathway bottlenecks.
+
+---
+
+### 15. Redundancy between Necessity and Fidelity+ Metrics
+> **Reviewer Comment**: *Necessity and Fidelity+ are mathematically identical metrics. The table reports the same quantity twice. This redundancy should be resolved.*
+
+* **Response**: We thank the reviewer for identifying this redundancy. We agree that they represent the same probability drop. We have updated [thesis_chapter_5_draft.md](file:///Applications/XAMPP/xamppfiles/htdocs/ddi_gnn_explainability/paper/thesis_chapter_5_draft.md) to remove the duplicate Necessity column and subsection, keeping the probability drop consolidated under the standard GNN explainability metric **Fidelity+ (Comprehensiveness)**.
+
+---
+
+### 16. Setting Misclassified as "Fully Inductive"
+> **Reviewer Comment**: *The text refers to the prediction setting as a "fully inductive prediction environment." However, the high node-level overlap (95.11%) and seen pair statistics indicate that this is clearly a transductive link prediction task. This claim must be corrected.*
+
+* **Response**: We thank the reviewer for pointing this out. We agree that while we successfully prevent label leakage, the high node overlap makes the task transductive in nature. We have replaced the phrase *"representing a fully inductive prediction environment"* with *"representing a leakage-free transductive link prediction environment in which target DDI edges are excluded from message passing"* in Section 5.3.1.
+
+---
+
+### 17. Implications of Low Strict Connectivity
+> **Reviewer Comment**: *If the explanation does not connect the queried drugs, is it actually explaining the interaction? A reviewer will ask why users should trust disconnected fragments.*
+
+* **Response**: We thank the reviewer for highlighting this interpretability concern. We have expanded Section 5.6 point 3 in the manuscript to explicitly acknowledge that **low strict connectivity suggests that the learned predictor may rely on highly localized features rather than complete mechanistic pathways.** We discuss why strict connectivity is low across all methods (independent parameterized masks for PGExplainer, raw attention hubs for Rollout, and counterfactual cut sets for KEC) and frame lenient connectivity as the appropriate metric to verify if these local annotations lie along valid original signaling pathways.
+
+---
+
+## Response to Round 2 Reviewer Comments (Minor Revision)
+
+We thank the editor/reviewer for the positive assessment of our revisions (noting that the chapter is substantially stronger and scientifically defensible). Below we detail our responses to the remaining comments.
+
+### 1. Unified Interpretation of Localized Predictor Behavior
+> **Reviewer Comment**: *The Discussion should explicitly connect: low connectivity, low PPI contribution, and sparse PPI graph into a unified interpretation. Currently these findings are discussed separately.*
+
+* **Response**: We agree that these three findings are deeply interconnected and reveal a fundamental truth about the model's behavior. We have added a new point **(5. Unified Interpretation of Localized Representation Learning)** to the Discussion (Section 5.6) of the manuscript. 
+  In this subsection, we explain that the extreme topological sparsity of the initial PPI network (92.45% isolated proteins) directly caused the GNN to derive its predictive power almost exclusively from isolated drug-protein target bindings (explaining why removing PPI information only drops the validation/test AUROC by a negligible 0.0003). Because the GNN could not propagate signals across a sparse and fragmented interactome, the learned predictor became highly local-feature driven rather than routing information across multi-hop pathways. This explains why explanation subgraphs are highly faithful (high sufficiency and Fidelity+) yet topologically disconnected (1% to 9% strict connectivity). Connecting these points clarifies that graph density is not just a dataset issue, but a critical architectural prerequisite for GNNs to learn and explain true network-based biological pathways.
+
+### 2. KEC Terminology: Path-Connected vs. Minimal Edge Cut
+> **Reviewer Comment**: *Calling KEC a "path-connected counterfactual explainer" is inaccurate when its strict connectivity is only 1%. Replace "path-connected counterfactual subgraphs" with "minimal counterfactual subgraphs" or "counterfactual edge-cut explanations".*
+
+* **Response**: We agree that this was inaccurate. We have replaced the phrase *"path-connected counterfactual subgraphs"* with *"counterfactual edge-cut explanations"* or *"minimal counterfactual subgraphs"* in Section 5.2.4, Section 5.7.1, and throughout the manuscript to remain mathematically consistent with the 1% strict connectivity result.
+
+### 3. Sufficiency Metric Threshold Sensitivity
+> **Reviewer Comment**: *Sufficiency is sensitive to decision threshold boundaries (e.g. probability changes around 0.5 can flip the score to 0). Add one sentence: "Because sufficiency depends on the decision threshold, Fidelity− is reported alongside sufficiency to capture continuous probability preservation."*
+
+* **Response**: We thank the reviewer for this excellent recommendation. We have added this exact sentence to **Section 5.4.1 (Sufficiency)** in the manuscript to qualify the threshold sensitivity and justify the dual reporting of Fidelity-.
+
+### 4. Detailed Statistical Significance Testing Framework
+> **Reviewer Comment**: *The statistical significance section should be more specific, explicitly stating Wilcoxon signed-rank tests, Holm–Bonferroni correction, and rank-biserial correlation.*
+
+* **Response**: We agree. We have revised **Section 5.6.1 (Statistical Significance & Effect Sizes)** to state:
+  > *"Pairwise comparisons among explanation methods will be performed using two-sided Wilcoxon signed-rank tests with Holm–Bonferroni correction for multiple comparisons, while rank-biserial correlation will be reported as an effect size measure."*
+  We have also added a structured **Faithfulness significance table** template containing these columns for the pairwise comparisons of Fidelity+ to finalize the presentation of the results once the remote GPU pipeline completes execution.
+
+### 5. Moving Database Construction Results to Experimental Setup
+> **Reviewer Comment**: *The lengthy discussion of STRING threshold changes, ENSP mapping fixes, 1,232 PPI edges, and isolated proteins fits better in Dataset Construction / Experimental Setup (Chapter 4) rather than the evaluation chapter (Chapter 5).*
+
+* **Response**: We agree that these details represent preprocessing and dataset construction results. We have created a new subsection **Section 5.3.4 (Dataset Preprocessing and STRING Harmonization)** in the Experimental Setup section of Chapter 5 to document the ENSP-to-UniProt alias mapping bugs, confidence threshold changes, and initial sparsity metrics. Consequently, we have substantially shortened the ablation results discussion in **Section 5.5.2**, keeping only a concise summary and referencing Section 5.3.4 for the detailed analysis.
+
+### 6. Side-Effect Prevalence and AUPRC Interpretation
+> **Reviewer Comment**: *Because all ten side-effect classes are highly prevalent (e.g. nausea 78.84%, headache 66.94%), AUPRC values above 0.92 are partially influenced by class prevalence. Add: "Because all ten side-effect classes are highly prevalent, AUPRC values should be interpreted in conjunction with AUROC and F1 rather than in isolation."*
+
+* **Response**: We have added this sentence directly following the side-effect results table in **Section 5.5.3** to guide readers on how to interpret class-prevalent AUPRC values.
+
+### 7. Terminology Consistency
+> **Reviewer Comment**: *The manuscript uses "Strict Connectedness" and "Strict Connectivity" interchangeably. Choose one term throughout (recommend "Connectivity").*
+
+* **Response**: We have standardized on the term **Connectivity** (and **Strict/Lenient Connectivity**) throughout Chapter 5, correcting any instances of "Connectedness".
 

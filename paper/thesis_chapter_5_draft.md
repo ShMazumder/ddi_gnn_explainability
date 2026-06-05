@@ -26,12 +26,12 @@ $$L = L_{fidelity} + \lambda_1 L_{sparsity} + \lambda_2 L_{entropy}$$
 where $L_{fidelity}$ is the cross-entropy loss between the predictions of the original GNN and the GNN evaluated on the masked subgraph, $L_{sparsity}$ is the $L_1$ regularization penalty on the edge masks to enforce compactness, and $L_{entropy}$ is the element-wise entropy of the masks to push edge weights towards binary values (0 or 1).
 
 During training, the logged loss values can exhibit significant oscillations (e.g., fluctuating between negative values and large positive values). This behavior is expected and stems from:
-1. The mathematical definition of the entropy penalty, which can become negative depending on scaling and optimization settings.
+1. The fact that the total optimization objective may become negative due to weighting and implementation-specific regularization terms.
 2. The dynamic trade-off between the soft sparsity regularizer and the prediction fidelity term. Early in training, the optimizer aggressively pushes the soft masks toward 0 to minimize sparsity and entropy penalties, which can temporarily degrade prediction fidelity and cause sharp gradient updates, resulting in loss oscillations before convergence.
 
 ### 5.2.4 Knowledge-Enhanced Counterfactual (KEC)
 
-Our proposed method identifies the minimal set of edges whose removal changes the model's prediction. KEC leverages the knowledge graph structure to constrain the search space to biologically plausible perturbations within the k-hop neighbourhood of the query drug pair.
+Our proposed method identifies the minimal set of edges whose removal changes the model's prediction, subject to restricting the search space to the local k-hop neighborhood of the query drug pair to preserve graph validity constraints. KEC leverages the knowledge graph structure to constrain the search space to biologically plausible perturbations.
 
 ### 5.2.5 Graph Homogenization and Bidirectional Message Flow
 
@@ -44,7 +44,7 @@ Without bidirectional modeling (i.e., using only directed edges from drugs to pr
 ### 5.3.1 Target Edge Masking & Leakage Prevention
 To evaluate emerging drug-drug interaction (DDI) predictions without introducing circular dependency or information leakage, target DDI edges are **never** included in the GNN's homogeneous message-passing graph `hom_edge`. The message-passing topology consists exclusively of drug-protein target bindings (`binds`) and protein-protein interactions (`interacts`). 
 
-The prediction target labels (DDI pairs) are only used in the final multi-layer perceptron (MLP) decoder to calculate loss and predictive metrics on distinct splits (train, validation, and test). This guarantees zero information leakage of prediction targets into the node representation learning step, representing a fully inductive prediction environment.
+The prediction target labels (DDI pairs) are only used in the final multi-layer perceptron (MLP) decoder to calculate loss and predictive metrics on distinct splits (train, validation, and test). This guarantees zero information leakage of prediction targets into the node representation learning step, representing a leakage-free transductive link prediction environment in which target DDI edges are excluded from message passing.
 
 ### 5.3.2 Data Splitting Strategy & Generalization Setting
 We employ a **pair-level (edge-level) random split** (70% train, 15% validation, and 15% test). In this setup, individual drug-drug interaction edges are partitioned. This corresponds to the transductive link prediction setting, evaluating the model's capacity to predict novel interactions between known drugs (e.g. filling in missing clinical DDI records). 
@@ -74,33 +74,61 @@ To verify that the model benefits from structural biological networks, we implem
 2. **No-PPI Ablation**: Evaluates performance when protein-protein interaction edges are removed, forcing the GAT to rely solely on isolated drug-protein target connections.
 3. **No-GNN Baseline**: Bypasses the GAT layers completely, projecting initial node embeddings directly to the MLP classifier (acting as a pure MLP/matrix factorization baseline).
 
+### 5.3.4 Dataset Preprocessing and STRING Harmonization
+During initial database ingestion, alias mappings from STRING v12 Ensembl Protein (ENSP) identifiers to UniProt accessions were filtered using a naive matching strategy. Because a single ENSP maps to multiple alias sources (such as gene symbols and transcript IDs), this NA-filtering logic caused valid UniProt identifiers to be overwritten by subsequent non-accession aliases, which do not exist in the DrugBank target list. 
+
+As a result, the constructed PyTorch Geometric graph contained only 1,232 directed PPI edges (616 undirected edges) across 4,917 proteins. This represents an average degree of 0.25, with 4,546 proteins (92.45%) topologically isolated from the network. To resolve this and establish a dense interactome, the preprocessing pipeline has been updated in the codebase to:
+1. **Lower the STRING confidence threshold to 400** (medium confidence).
+2. **Support one-to-many ENSP-to-UniProt mappings** in the alias ingestion dictionary.
+3. **Strip isoform suffixes** (e.g. `-1`, `-2`) during ingestion to maximize alignment with DrugBank.
+
+These updates are designed to restore the interactome to a dense network containing over 100,000 PPI edges on the full dataset. The results presented in this chapter benchmark the initial sparse configuration (1,232 edges), while future remote runs will evaluate performance on the denser graph.
+
 ## 5.4 Faithfulness Metrics
 
-| Metric | Definition | Ideal |
-| :--- | :--- | :--- |
-| **Sufficiency** | Prediction agreement using only the explanation subgraph | High |
-| **Necessity** | Prediction drop when explanation edges are removed | High |
-| **Fidelity+** | Average ΔP when explanation is removed | High |
-| **Fidelity-** | Average ΔP when only explanation is kept | Low |
-| **Sparsity** | Fraction of candidate subgraph edges omitted from explanation | High |
-| **Path-Connected % (Strict)** | Percentage of explanations where query drug nodes are connected in the explanation subgraph | High |
-| **Path-Connected % (Lenient)** | Percentage of explanations where explanation edges lie along some path between query drugs in the original graph | High |
-| **Avg Hop Distance (Strict)** | Shortest path distance between query drug nodes in the explanation subgraph | Low |
-| **Avg Hop Distance (Lenient)** | Shortest path distance between query drug nodes along the lenient pathway in the original graph | Low |
+To evaluate GNN explanation subgraphs quantitatively, we implement several mathematical metrics assessing prediction faithfulness and topological structure. Let $G_i$ represent the original input graph for instance $i$, $y_i$ the model's predicted label, and $P(y_i \mid G_i)$ the prediction probability. Let $G_i^E$ denote the explanation subgraph (selected edges), and $G_i \setminus G_i^E$ the complement graph with explanation edges removed.
+
+### 5.4.1 Sufficiency (S)
+Sufficiency measures the fraction of predictions where the explanation subgraph alone is sufficient to preserve the model's prediction:
+$$S = \frac{1}{N} \sum_{i=1}^N \mathbb{1}\left[ \hat{y}(G_i^E) = \hat{y}(G_i) \right]$$
+where $\hat{y}(\cdot) = \mathbb{1}\left[ P(y \mid \cdot) > \tau \right]$ is the binary prediction output at classification threshold $\tau = 0.5$. We employ a binary agreement formulation because clinical decision support systems ultimately operate on discrete interaction predictions rather than raw probabilities. Because sufficiency depends on the decision threshold, Fidelity− is reported alongside sufficiency to capture continuous probability preservation.
+
+### 5.4.2 Fidelity+ ($\text{Fid}^+$)
+Fidelity+ (Comprehensiveness) measures the average prediction probability drop when the explanation edges are removed from the graph:
+$$\text{Fid}^+ = \frac{1}{N} \sum_{i=1}^N \left( P(y_i \mid G_i) - P(y_i \mid G_i \setminus G_i^E) \right)$$
+A higher Fidelity+ indicates that the GNN depends heavily on the selected edges for its prediction.
+
+### 5.4.3 Fidelity- ($\text{Fid}^-$)
+Fidelity- (Sufficiency probability change) measures the average change in prediction probability when only the explanation subgraph is kept:
+$$\text{Fid}^- = \frac{1}{N} \sum_{i=1}^N \left( P(y_i \mid G_i) - P(y_i \mid G_i^E) \right)$$
+A lower Fidelity- indicates that the explanation subgraph alone is sufficient to produce the original prediction probability.
+
+### 5.4.4 Sparsity
+Local Sparsity is defined as the fraction of candidate local 2-hop neighborhood edges omitted from the explanation:
+$$\text{Sparsity} = 1.0 - \frac{|E_{selected} \cap E_{subgraph}|}{|E_{subgraph}|}$$
+where $E_{selected}$ is the set of explanation edges and $E_{subgraph}$ is the set of edges in the candidate local 2-hop neighborhood of the query drug pair. This bounds the metric in $[0.0, 1.0]$.
+
+### 5.4.5 Topological Connectivity
+We evaluate two definitions of path connectivity between the query drug nodes ($d_1$, $d_2$):
+1. **Strict Connectivity %**: The percentage of instances where a continuous path connecting $d_1$ and $d_2$ exists using only edges in the explanation subgraph $E_{selected}$.
+2. **Lenient Connectivity %**: The percentage of instances where the explanation edges are a subset of some valid path connecting $d_1$ and $d_2$ in the original graph $G_i$.
+3. **Avg Hop Distance (Strict/Lenient)**: The shortest path length (number of edges) between the drug nodes under strict or lenient path connectivity definitions.
+
+---
 
 ## 5.5 Results
 
 ### 5.5.1 Faithfulness Benchmarks
-We evaluate the faithfulness and topological connectivity of explanations generated by the four methods on 100 randomly sampled drug pairs:
+Although explanations were generated for 200 drug pairs (matching the `num_pairs` configuration in the explanation phase), we evaluate faithfulness metrics on a subset of 100 drug pairs. This subset was selected using simple random sampling with a fixed random seed (to ensure reproducibility) to manage the high computational cost of running multiple GNN forward passes for mask perturbation and counterfactual evaluation. We evaluate the faithfulness and topological connectivity of explanations generated by the four methods on these 100 randomly sampled drug pairs:
 
-| Method | Sufficiency | Necessity | Fidelity+ | Fidelity- | Sparsity (Local) | Connected % (Strict) | Connected % (Lenient) | Avg Hop (Strict) | Avg Hop (Lenient) | Num Evaluated |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Attention Rollout** | 0.7370 | 0.0061 | 0.0061 | 0.1604 | *TBD* | 9.0% | *TBD* | 2.00 | *TBD* | 100 |
-| **GNNExplainer** | 0.7350 | 0.0002 | 0.0002 | 0.1776 | *TBD* | 0.0% | *TBD* | - | *TBD* | 100 |
-| **PGExplainer** | **0.7550** | **0.1561** | **0.1561** | **0.1444** | *TBD* | 5.0% | *TBD* | 2.00 | *TBD* | 100 |
-| **KEC (Proposed)** | 0.6300 | 0.1356 | 0.1356 | 0.2130 | *TBD* | 1.0% | *TBD* | 2.00 | *TBD* | 100 |
+| Method | Sufficiency | Fidelity+ | Fidelity- | Sparsity (Local) | Connectivity % (Strict) | Connectivity % (Lenient) | Avg Hop (Strict) | Avg Hop (Lenient) | Num Evaluated |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Attention Rollout** | 0.7370 | 0.0061 | 0.1604 | *TBD* | 9.0% | *TBD* | 2.00 | *TBD* | 100 |
+| **GNNExplainer** | 0.7350 | 0.0002 | 0.1776 | *TBD* | 0.0% | *TBD* | - | *TBD* | 100 |
+| **PGExplainer** | **0.7550** | **0.1561** | **0.1444** | *TBD* | 5.0% | *TBD* | 2.00 | *TBD* | 100 |
+| **KEC (Proposed)** | 0.6300 | 0.1356 | 0.2130 | *TBD* | 1.0% | *TBD* | 2.00 | *TBD* | 100 |
 
-*Note: Bolded values represent the ideal performance per column (highest for Sufficiency, Necessity, Fidelity+, and Connected %; lowest for Fidelity-). Sparsity (Local) is computed as the fraction of candidate local 2-hop neighborhood edges omitted from the explanation, bounding it properly in [0.0, 1.0]. Connected % (Strict) measures if the query drugs are connected within the explanation subgraph, while Connected % (Lenient) measures if the explanation edges lie along any valid path in the original graph. The values marked as *TBD* will be populated upon completing the final run on the remote GPU environment using the corrected metrics pipeline.*
+*Note: Bolded values represent the ideal performance per column (highest for Sufficiency, Fidelity+, and Connectivity %; lowest for Fidelity-). Sparsity (Local) is computed as the fraction of candidate local 2-hop neighborhood edges omitted from the explanation, bounding it properly in [0.0, 1.0]. Connectivity % (Strict) measures if the query drugs are connected within the explanation subgraph, while Connectivity % (Lenient) measures if the explanation edges lie along any valid path in the original graph. The values marked as *TBD* will be populated upon completing the final run on the remote GPU environment using the corrected metrics pipeline.*
 
 
 
@@ -109,7 +137,7 @@ To isolate the predictive contributions of the heterogeneous network layers, we 
 
 | Configuration | Val AUROC | Test AUROC | Test AUPRC | Test F1 | Test Precision | Test Recall | Description |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Full GAT Model** | 0.8462 | **0.8446** | **0.9378** | 0.8077 | **0.9009** | 0.7324 | Complete clinical knowledge graph (bidirectional drug-protein targets + dense PPI) |
+| **Full GAT Model** | 0.8462 | **0.8446** | **0.9378** | 0.8077 | **0.9009** | 0.7324 | Complete clinical knowledge graph (bidirectional drug-protein targets + available PPI network) |
 | **No-PPI Ablation** | **0.8467** | 0.8443 | 0.9376 | **0.8105** | 0.8984 | **0.7387** | Protein-protein interactions removed from message-passing |
 | **No-GNN Baseline** | 0.8353 | 0.8340 | 0.9325 | 0.8048 | 0.8903 | 0.7348 | GAT bypassed entirely; pure node embedding MLP classifier |
 
@@ -117,47 +145,55 @@ To isolate the predictive contributions of the heterogeneous network layers, we 
 
 At full convergence, the GNN-based configurations (FULL and NO_PPI) significantly outperform the static embedding MLP baseline (NO_GNN), achieving Test AUROCs of 0.8446 and 0.8443 respectively compared to 0.8340. This demonstrates that structure-aware graph message-passing yields superior drug representations than static node embeddings alone.
 
-However, the inclusion of PPI information (FULL) produces performance comparable to the model without PPI edges (NO_PPI), with a marginal difference of only 0.0003 in Test AUROC (0.8446 vs. 0.8443). This indicates that the protein-protein interaction network contributes very little predictive signal under the previous sparse graph construction.
- 
-This behavior was directly explained by the extreme sparsity of the previous PPI network: after Swiss-Prot/TrEMBL alias mapping, the graph contained only 1,232 PPI edges among 4,917 proteins (average degree of $\approx 0.50$), leaving 92.45% of target proteins topologically isolated. To resolve this limitation, we have updated the graph construction pipeline in the codebase to:
-1. **Lower the STRING confidence threshold to 400** (medium confidence).
-2. **Support one-to-many ENSP-to-UniProt mappings** in the alias ingestion dictionary.
-3. **Strip isoform suffixes** to align perfectly with DrugBank targets.
-
-These updates are designed to restore the interactome to a dense network containing over 100,000 PPI edges, reducing isolated protein nodes and enabling the GNN to propagate topological signals across biological pathways. The final converged performance and graph statistics from the dense PPI network will be populated upon completing the execution on the remote GPU environment.
+However, the inclusion of PPI information (FULL) produces performance comparable to the model without PPI edges (NO_PPI), with a marginal difference of only 0.0003 in Test AUROC (0.8446 vs. 0.8443). As detailed in the dataset preprocessing analysis in Section 5.3.4, this behaviour is directly explained by the extreme sparsity of the initial PPI network, which left 92.45% of target proteins topologically isolated. Consequently, the GNN was unable to propagate biological information, and the primary predictive signal was derived from drug-protein target bindings. The proposed denser pipeline (threshold 400, one-to-many mappings) will be executed on the remote environment to verify if density improvements resolve this limitation.
 
 ### 5.5.3 Per-Side-Effect Performance Results
 To assess the model's performance on individual DDI side effects, we evaluate the best-trained model on the independent test set across each of the 10 side-effect classes. The results, along with class frequencies, are summarized below:
 
-| Side Effect | Frequency (%) | Test AUROC | Test AUPRC | Test F1 | Test Precision | Test Recall |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Nausea** | 78.84% | 0.8440 | 0.9548 | 0.8237 | 0.9255 | 0.7421 |
-| **Dyspnoea** | 76.64% | 0.8369 | 0.9474 | 0.8205 | 0.9139 | 0.7444 |
-| **Diarrhoea** | 74.94% | 0.8378 | 0.9427 | 0.8121 | 0.9058 | 0.7359 |
-| **Vomiting** | 73.70% | 0.8276 | 0.9360 | 0.8047 | 0.8968 | 0.7298 |
-| **Pyrexia** | 70.96% | 0.8249 | 0.9253 | 0.7986 | 0.8820 | 0.7296 |
-| **Fatigue** | 70.07% | 0.8696 | 0.9430 | 0.8318 | 0.8930 | 0.7784 |
-| **Pneumonia** | 69.88% | 0.8383 | 0.9283 | 0.8112 | 0.8761 | 0.7552 |
-| **Pain** | 69.36% | 0.8766 | 0.9456 | 0.8388 | 0.8976 | 0.7872 |
-| **Anaemia** | 69.22% | 0.8438 | 0.9290 | 0.8051 | 0.8839 | 0.7392 |
-| **Headache** | 66.94% | 0.8545 | 0.9278 | 0.8131 | 0.8700 | 0.7632 |
+| Side Effect | Frequency (%) | Positive (Test) | Negative (Test) | Test AUROC | Test AUPRC | Test F1 | Test Precision | Test Recall |
+| :--- | :---: | :---: | :---: | :--- | :--- | :--- | :--- | :--- |
+| **Nausea** | 78.84% | 19,877 | 5,335 | 0.8440 | 0.9548 | 0.8237 | 0.9255 | 0.7421 |
+| **Dyspnoea** | 76.64% | 19,322 | 5,890 | 0.8369 | 0.9474 | 0.8205 | 0.9139 | 0.7444 |
+| **Diarrhoea** | 74.94% | 18,894 | 6,318 | 0.8378 | 0.9427 | 0.8121 | 0.9058 | 0.7359 |
+| **Vomiting** | 73.70% | 18,581 | 6,631 | 0.8276 | 0.9360 | 0.8047 | 0.8968 | 0.7298 |
+| **Pyrexia** | 70.96% | 17,890 | 7,322 | 0.8249 | 0.9253 | 0.7986 | 0.8820 | 0.7296 |
+| **Fatigue** | 70.07% | 17,666 | 7,546 | 0.8696 | 0.9430 | 0.8318 | 0.8930 | 0.7784 |
+| **Pneumonia** | 69.88% | 17,618 | 7,594 | 0.8383 | 0.9283 | 0.8112 | 0.8761 | 0.7552 |
+| **Pain** | 69.36% | 17,487 | 7,725 | 0.8766 | 0.9456 | 0.8388 | 0.8976 | 0.7872 |
+| **Anaemia** | 69.22% | 17,452 | 7,760 | 0.8438 | 0.9290 | 0.8051 | 0.8839 | 0.7392 |
+| **Headache** | 66.94% | 16,877 | 8,335 | 0.8545 | 0.9278 | 0.8131 | 0.8700 | 0.7632 |
 
 
-Importantly, while per-side-effect predictive performance varies depending on class frequency and data density, a critical avenue for future work is evaluating explanation fidelity on a per-class basis (e.g., assessing whether explanation necessity and sufficiency differ for common side effects like Nausea vs. rarer, complex conditions like Pneumonia).
+Because all ten side-effect classes are highly prevalent (ranging from 66.94% to 78.84% positive class ratio), the model's AUPRC values (ranging from 0.9253 to 0.9548) are heavily influenced by class prevalence and should be interpreted in conjunction with AUROC and F1 rather than in isolation. Importantly, while per-side-effect predictive performance varies depending on class frequency and data density, a critical avenue for future work is evaluating explanation fidelity on a per-class basis (e.g., assessing whether explanation necessity and sufficiency differ for common side effects like Nausea vs. rarer, complex conditions like Pneumonia).
 
 ## 5.6 Discussion
 
 The experimental results present distinct trade-offs between the four evaluated explainability methods:
 
-1. **PGExplainer as the General Faithfulness Winner**: PGExplainer is the strongest general-purpose explainer on this task, achieving the highest sufficiency (0.7550) and necessity (0.1561) scores. Its parameterized global MLP formulation allows it to learn reusable motifs across the entire clinical knowledge graph, mapping features to prediction outputs with high fidelity. KEC is best understood as a complementary method that provides minimal, compressed counterfactual explanations for cases where the user specifically wants to know what is the smallest change that breaks the prediction.
-2. **KEC as a Minimum Edge Cut Explainer**: KEC identifies the **minimum edge cut** whose removal flips the GNN's prediction. Unlike path-based explainers, KEC returns a minimal, possibly singleton, edge set—making it the most **compressed** explanation method (sparsity 0.000090 vs. 0.000416 for PGExplainer, representing a ~4.6× compression) at the cost of strict path connectivity. KEC's explanations are most useful when the practitioner wants to know *"which single edge is most critical to the prediction"* rather than *"how do these drugs interact through shared pathways."*
-3. **Dual Connectivity Analysis (Strict vs. Lenient)**: Across all methods, strict path connectivity in the explanation subgraph is very low (9.0% for Attention, 5.0% for PGExplainer, 1.0% for KEC). This is mathematically expected for counterfactual cut-set explainers: a minimal cut set is designed to break connectivity rather than preserve it. However, our new **Lenient Connectedness** metric (which evaluates if the explanation edges are a subset of any valid path in the original graph) validates that KEC's selected edges lie along valid biological pathways in the original graph (yielding 100% lenient connectedness on synthetic test cases), confirming their functional relevance.
-4. **Causal vs. Descriptive Explanations (Attention & GNNExplainer)**: Both Attention Rollout and GNNExplainer exhibit near-zero necessity scores (0.0061 and 0.0002, respectively). Removing their selected subgraphs has virtually no impact on model predictions because alternative redundant pathways remain active. Thus, Attention and vanilla GNNExplainer act as descriptive (correlated) explainers that highlight active hubs rather than identifying causal, non-redundant paths.
+1. **PGExplainer as the General Faithfulness Winner**: PGExplainer is the strongest general-purpose explainer on this task, achieving the highest sufficiency (0.7550) and Fidelity+ (0.1561) scores. Its parameterized global MLP formulation allows it to learn reusable motifs across the entire clinical knowledge graph, mapping features to prediction outputs with high fidelity. KEC is best understood as a complementary method that provides minimal, compressed counterfactual explanations for cases where the user specifically wants to know what is the smallest change that breaks the prediction.
+2. **KEC as a Minimum Edge Cut Explainer**: KEC identifies the **minimum edge cut** whose removal flips the GNN's prediction. Unlike path-based explainers, KEC returns a minimal, possibly singleton, edge set—making it the most **compressed** explanation method at the cost of strict path connectivity. KEC is designed to select the minimal set of edges whose removal flips the prediction, which is expected to yield a higher local sparsity compared to unconstrained baselines (to be quantified in the final run). KEC's explanations are most useful when the practitioner wants to know *"which single edge is most critical to the prediction"* rather than *"how do these drugs interact through shared pathways."*
+3. **Dual Connectivity Analysis (Strict vs. Lenient)**: Across all methods, strict path connectivity in the explanation subgraph is very low (9.0% for Attention, 5.0% for PGExplainer, 1.0% for KEC). This raises a critical trust question: why should clinical users trust explanations that fail to connect the query drugs? 
+   - For PGExplainer, its parameterized MLP masks edges independently across the entire graph. Because it lacks topological connectivity constraints, it focuses on selecting isolated, highly predictive target edges (e.g., specific drug-protein bindings) rather than forming continuous, multi-hop pathways.
+   - For Attention Rollout, it aggregates raw attention weights across layers. This highlights active local hub proteins (such as widely interacting enzymes or receptors) rather than continuous, multi-hop pathways.
+   - For KEC, a low strict connectivity is mathematically expected by design: as a counterfactual minimum edge cut search, it identifies the smallest edge set (often 1 or 2 target binding edges) whose deletion flips the prediction. A cut set is structurally designed to *break* connectivity rather than preserve it. 
+   - Importantly, **low strict connectivity suggests that the learned predictor may rely on highly localized features rather than complete mechanistic pathways.** To bridge this gap, our **Lenient Connectivity** metric evaluates if the explanation edges lie along *some* valid pathway connecting the query drugs in the original graph. Preliminary synthetic validation indicates that counterfactual cut edges frequently lie on valid drug-target pathways; this observation will be quantified using the lenient connectivity metric in the final evaluation.
+4. **Causal vs. Descriptive Explanations (Attention & GNNExplainer)**: Both Attention Rollout and GNNExplainer exhibit near-zero Fidelity+ scores (0.0061 and 0.0002, respectively). Removing their selected subgraphs has virtually no impact on model predictions because alternative redundant pathways remain active. Thus, Attention and vanilla GNNExplainer act as descriptive (correlated) explainers that highlight active hubs rather than identifying causal, non-redundant paths.
+5. **Unified Interpretation of Localized Representation Learning**: Taken together, the low connectivity of explanations, the negligible contribution of PPI edges to predictive performance (ablation difference of only 0.0003), and the extreme topological sparsity of the initial PPI network suggest a unified interpretation of the GNN's behavior. The predictor is largely local-feature driven, relying on isolated drug-protein target bindings rather than routing information across continuous biological pathways. Because the protein network was sparse and highly isolated, the GAT layers could not learn structure-aware representations that leverage long-range biological mechanisms. Instead, the model's predictions are driven by localized associations, which explain why explanations are highly faithful (high sufficiency and Fidelity+) yet structurally disconnected (near-zero connectivity). Resolving the sparse PPI graph is thus not only a dataset issue, but a critical prerequisite for the GNN to learn and explain true network-based biological pathways.
 
 ### 5.6.1 Statistical Significance & Effect Sizes
-To evaluate the statistical significance of these results, we performed a Wilcoxon signed-rank test across the evaluated drug pairs. The difference in necessity between PGExplainer (0.1561) and KEC (0.1356) is not statistically significant ($p > 0.05$ via Wilcoxon signed-rank test, rank-biserial correlation $r = 0.05$). This indicates high per-pair variance, consistent with the heterogeneity of biological mechanisms underlying DDI prediction.
+Pairwise comparisons among explanation methods will be performed using two-sided Wilcoxon signed-rank tests with Holm–Bonferroni correction for multiple comparisons, while rank-biserial correlation will be reported as an effect size measure. This non-parametric paired testing framework is well-suited to handle the high per-pair variance characteristic of heterogeneous drug-target pathways. 
 
-However, both PGExplainer and KEC significantly outperform Attention Rollout and GNNExplainer on necessity ($p < 0.001$ with large effect sizes; PGExplainer vs. Attention rank-biserial correlation $r = 0.85$, KEC vs. Attention rank-biserial correlation $r = 0.81$). This confirms that parameterized edge models and counterfactual constraints yield much stronger causal relevance than heuristic rollout or unconstrained mutual information optimization.
+The planned statistical significance table for pairwise comparisons on Fidelity+ is structured as follows:
+
+| Comparison | Metric | p-value | Effect Size (Rank-Biserial) | Significant? |
+| :--- | :---: | :---: | :---: | :---: |
+| **PGExplainer vs. Attention** | Fidelity+ | *TBD* | *TBD* | *TBD* |
+| **PGExplainer vs. GNNExplainer** | Fidelity+ | *TBD* | *TBD* | *TBD* |
+| **PGExplainer vs. KEC** | Fidelity+ | *TBD* | *TBD* | *TBD* |
+| **KEC vs. Attention** | Fidelity+ | *TBD* | *TBD* | *TBD* |
+| **KEC vs. GNNExplainer** | Fidelity+ | *TBD* | *TBD* | *TBD* |
+
+*Note: The test statistics, p-values, and rank-biserial correlation values will be computed and populated following the execution of the full pipeline on the remote GPU environment.*
 
 
 ## 5.7 Usability Evaluation
@@ -165,7 +201,7 @@ However, both PGExplainer and KEC significantly outperform Attention Rollout and
 While quantitative metrics verify the faithfulness and topological connectivity of explanation methods, their clinical utility ultimately depends on their interpretability by medical practitioners. Because the pharmacist survey is currently in the preparation phase, we present here the formal evaluation protocol:
 
 ### 5.7.1 Clinical Usability Study Protocol
-1. **Objective**: Compare the comprehensibility and actionability of KEC explanations (path-connected counterfactual subgraphs) against PGExplainer and Attention Rollout.
+1. **Objective**: Compare the comprehensibility and actionability of KEC explanations (counterfactual edge-cut explanations) against PGExplainer and Attention Rollout.
 2. **Participants**: We will recruit a cohort of $N=15$ licensed clinical pharmacists and clinical pharmacologists. This sample size is consistent with published usability studies of clinical decision support (e.g., Janssen et al., 2023), where thematic saturation is typically reached by 12–20 participants.
 3. **Task & Blinding**: Participants will be presented with 20 randomly sampled drug-drug interaction predictions and their corresponding explanation subgraphs. Triple-blinding will be enforced by: (1) replacing drug names with alphanumeric codes (e.g., `DRG_001`, `DRG_002`), (2) omitting the names of the explainability methods generating the subgraphs, and (3) making side-effect labels visible only if necessary for the actionability question.
 4. **Assessment Framework**: For each explanation, participants will rate the following statements on a 5-point Likert scale (1 = Strongly Disagree, 5 = Strongly Agree):
@@ -179,4 +215,4 @@ While quantitative metrics verify the faithfulness and topological connectivity 
    - *"What critical information was missing?"*
    - *"Would you trust this in a real prescribing decision?"*
 
-7. **Ethics and IRB**: This protocol has been submitted for Institutional Review Board (IRB) review under exempt status, as it collects only professional feedback on tool usability and does not involve patient-specific health data.
+7. **Ethics and IRB**: IRB approval will be sought prior to participant recruitment, requesting exempt status since the study collects only professional feedback on tool usability and does not involve patient-specific health data.
