@@ -421,3 +421,45 @@ We have updated the manuscript and addressed all major methodological and polish
   - **Isolated Proteins**: We explicitly state in Section 5.3.1 that under the dense STRING configuration, 1,995 proteins (40.57%) remain isolated, and the largest component encompasses 2,922 proteins (59.43%).
   - **Average Hop**: We added a note that "shorter is better" for average hop distance in Table 5.5.1 and Section 5.6 point 3.
 
+---
+
+## Response to Journal Submission & Peer-Review Polishing Revisions (Round 7)
+
+We have addressed the final round of peer-review polishing and dissertation-readiness revisions by adding formal algorithms, qualifying metric interpretations, introducing standard deviations/uncertainty reporting, and tightening architectural and baseline justifications. Below is a detailed summary of the updates made to address each reviewer concern:
+
+### 1. Formal KEC Search Heuristic Algorithm
+* **Concern**: *The description of KEC is incomplete without a formal step-by-step description of the approximation search procedure.*
+* **Response**: We agree. We have added a dedicated subsection **Section 5.2.4.1 (KEC Search Heuristic)** in the manuscript to formally define the five steps of KEC's search strategy: (1) Local Subgraph Extraction, (2) Candidate Edge Filtering, (3) Single-Edge Prediction Impact Ranking ($I(e)$), (4) Greedy Deletion & Stopping Criterion (binary prediction flip), and (5) Output minimal edge set formulation.
+
+### 2. Fidelity+ (Necessity) Interpretation Cautions
+* **Concern**: *A Fidelity+ value of 0.0371 is statistically larger than the alternatives but represents a small average probability change (3.7%). Wording should be qualified to avoid over-claiming.*
+* **Response**: We have updated Section 5.6 point 1 to tone down necessity claims. Instead of framing KEC's subgraphs as "highly essential", we now describe them as "relatively more influential than the alternatives evaluated" and "successfully acting as functional bottlenecks under a counterfactual perturbation framework."
+
+### 3. Softening Claims About Learned Biology
+* **Concern**: *Avoid claiming that the model has learned biological "interaction motifs" or "biological mechanism learning" without direct causal proof.*
+* **Response**: We have revised the connectivity and discussion sections (Section 5.6 point 3) to soften these claims. We now write: *"This suggests that the learned GAT model appears to rely predominantly on localized graph structures, particularly drug–protein target associations, rather than routing signals along long-range biological pathways."*
+
+### 4. Reporting Confidence Intervals and Variance (Mean ± SD)
+* **Concern**: *Reporting mean values without standard deviations or confidence intervals makes it impossible to judge the significance of small differences (e.g. PGExplainer 0.7480 sufficiency vs. Attention 0.7422).*
+* **Response**: We have fully updated Table 5.5.1 to report all faithfulness metrics (Sufficiency, Fidelity+, Fidelity-, and Sparsity) as **Mean ± SD** calculated across the 100 randomly sampled drug pairs. For example, PGExplainer Sufficiency is reported as $0.7480 \pm 0.3287$ and Attention Sufficiency as $0.7422 \pm 0.3133$.
+
+### 5. Ablation Results and PPI Predictive Utility
+* **Concern**: *Reviewers will notice that NO_PPI (0.8544 AUROC) outperforms FULL (0.8536 AUROC). The draft must explicitly state that the main focus of this work is explainability rather than predictive optimization.*
+* **Response**: We agree. We have added a dedicated disclaimer to Section 5.5.2 and Section 5.6 point 5: *"Crucially, the primary contribution of this work is explainability evaluation rather than demonstrating predictive utility of PPI-enhanced message passing; we focus on benchmarking how explainers reflect internal model weights under different structural densities."* This prevents reviewers from questioning the inclusion of PPI.
+
+### 6. Justification for Primary Testing Endpoint
+* **Concern**: *Explain why statistical significance tests were performed only on the Fidelity+ metric.*
+* **Response**: We have added an explicit justification sentence at the start of Section 5.6.3: *"We select Fidelity+ (necessity) as the primary endpoint for pairwise statistical testing because it directly measures explanation necessity under perturbation (i.e. the drop in model prediction confidence upon edge deletion), which is the most critical axis of explanation faithfulness."*
+
+### 7. Random Connectivity Baseline Methodological Detail
+* **Concern**: *Provide methodological detail (runs, distribution, trials) for the random lenient connectivity baseline.*
+* **Response**: We have updated the Table 5.5.1 footnote to detail the baseline's methodology: *"In comparison, a random edge-selection baseline (selecting $k=4$ edges uniformly at random from the candidate set, averaged across 100 random trials per pair) yields exactly 0.00% lenient connectivity..."*
+
+### 8. Minor Structural and Numbering Edits
+* **Concern**: *Address minor issues: section numbering (missing 5.6.1), GNNExplainer Fidelity+ values, pair-level split defense, and usability protocol status.*
+* **Response**: We have addressed each of these points:
+  - **Section Numbering**: Introduced **Section 5.6.1 (Trade-off Analysis)** before 5.6.2 to resolve the numbering gap.
+  - **GNNExplainer Fidelity+**: Updated Table 5.5.1 to report GNNExplainer Fidelity+ as `<0.0001 ± 0.0002` (reflecting the exact value $-1.95 \times 10^{-5}$ from raw results).
+  - **Split Defense**: Added to Section 5.3.2: *"This evaluation follows the standard transductive protocol used by most DDI graph-learning benchmarks."*
+  - **Planned Usability Protocol**: Renamed Section 5.7 to **5.7 Planned Clinical Usability Evaluation** to clarify that it represents a protocol design rather than completed survey results.
+  - **Explanation Stability**: Added a dedicated paragraph in Section 5.6.3 discussing explainer deterministic stability across random seeds (detailing KEC's deterministic property vs. stochastic mask optimization in PGExplainer/GNNExplainer).
