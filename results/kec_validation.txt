@@ -1,0 +1,4 @@
+Total instances evaluated: 48
+Mean Greedy Explanation Size: 1.3125
+Mean Exact Minimum Size:      1.1458
+Exact Agreement Rate:         93.75%

@@ -1,0 +1,4 @@
+PGExplainer Mean Fidelity+: -0.004547
+Random Mask Mean Fidelity+: 0.000013
+Difference: -0.004560
+Conclusion: The negative Fidelity+ is SPECIFIC to PGExplainer's selected mask, supporting the mask-induced distribution shift hypothesis.

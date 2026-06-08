@@ -34,9 +34,10 @@ def main():
     # 5. KEC vs. GNNExplainer
     
     methods = df['method'].unique()
+    # Format scores by method as dataframes indexed by pair_idx
     scores_by_method = {}
     for m in methods:
-        scores_by_method[m] = df[df['method'] == m].sort_values('pair_idx')['fidelity_plus'].values
+        scores_by_method[m] = df[df['method'] == m][['pair_idx', 'fidelity_plus']].set_index('pair_idx')
         
     comparisons = [
         ("pgexplainer", "attention", "PGExplainer vs. Attention"),
@@ -47,22 +48,19 @@ def main():
         ("kec", "gnnexplainer", "KEC vs. GNNExplainer")
     ]
     
-    # Check if all needed methods are present
-    for m1, m2, _ in comparisons:
-        if m1 not in scores_by_method:
-            print(f"Missing data for method: {m1}")
-            return
-        if m2 not in scores_by_method:
-            print(f"Missing data for method: {m2}")
-            return
-            
     # Perform Wilcoxon signed-rank tests
     raw_p_values = []
     effect_sizes = []
     
     for m1, m2, label in comparisons:
-        s1 = scores_by_method[m1]
-        s2 = scores_by_method[m2]
+        if m1 not in scores_by_method or m2 not in scores_by_method:
+            print(f"Missing data for comparison: {m1} vs {m2}")
+            return
+            
+        # Join on pair_idx to keep only common pairs
+        joined = scores_by_method[m1].join(scores_by_method[m2], lsuffix='_1', rsuffix='_2', how='inner')
+        s1 = joined['fidelity_plus_1'].values
+        s2 = joined['fidelity_plus_2'].values
         
         # Check if the difference is entirely zero
         if np.all(s1 == s2):
