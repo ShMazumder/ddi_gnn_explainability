@@ -7,7 +7,7 @@ This repository contains the complete implementation for the master's thesis:
 
 ```bash
 # Clone repository
-git clone https://github.com/yourname/ddi_gnn_explainability.git
+git clone https://github.com/ShMazumder/ddi_gnn_explainability.git
 cd ddi_gnn_explainability
 
 # Install dependencies
