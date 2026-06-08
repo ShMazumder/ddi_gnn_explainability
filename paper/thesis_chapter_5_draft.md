@@ -2,10 +2,13 @@
 
 ## 5.1 Overview
 
-This chapter presents the core experimental evaluation of four GNN explanation methods applied to the trained homogeneous GAT model for drug–drug interaction (DDI) prediction. Crucially, this evaluation is scoped as a methodology-oriented study of GNN explainability and faithfulness. Our primary objective is to investigate the degree to which different explainability wrappers accurately reflect the internal decision logic of the underlying model, rather than benchmarking predictive state-of-the-art DDI models. Consequently, comparisons against specialized predictive models (such as MIRACLE, SSI-DDI, or EmerGNN) are out of scope for this study. We evaluate the explainers along two main axes:
+This chapter presents the core experimental evaluation of four GNN explanation methods applied to the trained homogeneous GAT model for drug–drug interaction (DDI) prediction. Crucially, this evaluation is scoped as a methodology-oriented study of GNN explainability and faithfulness. Our primary objective is to investigate the degree to which different explainability wrappers accurately reflect the internal decision logic of the underlying model. By design, this study does not focus on benchmarking predictive state-of-the-art DDI models; consequently, comparisons against specialized predictive architectures (such as MIRACLE, SSI-DDI, or EmerGNN) are out of scope. 
 
+Importantly, our evaluation addresses a fundamental tension in explainability research: the "Predictive Paradox." As detailed in our GNN ablations, incorporating a dense protein-protein interaction (PPI) network does not yield a significant performance boost over a model trained purely on localized drug-protein target connections. If the GNN backbone itself primarily relies on localized drug-protein target associations rather than long-range graph routing, then explanation methods will faithfully reflect this localized decision logic by selecting disconnected subgraphs rather than complete multi-hop pathways. Therefore, the low topological connectivity of explanations is not necessarily a failure of the explainability wrappers themselves, but rather a faithful representation of the underlying model's localized representation learning.
+
+We evaluate the explainers along two main axes:
 1. **Faithfulness**: Does the explanation subgraph accurately reflect the model's decision process?
-2. **Usability**: Can domain experts (pharmacists) understand and act on the explanations?
+2. **Clinical Validation Protocol**: Can a proposed survey protocol guide domain experts (pharmacists) to evaluate the clinical actionability of explanations?
 
 ## 5.2 Explanation Methods
 
@@ -15,7 +18,9 @@ Attention rollout aggregates attention weights across all layers of the GAT mode
 
 ### 5.2.2 GNNExplainer
 
-GNNExplainer (Ying et al., 2019) learns a soft edge mask $M_E$ and a node feature mask $M_X$ per instance by optimising mutual information between the original prediction and the masked subgraph prediction. The soft masks are optimized using a continuous relaxation where the edge masks are treated as variational parameters. During optimization, GNNExplainer employs stochastic mask sampling, where edges and feature values are sampled according to the learned variational probabilities to compute expected predictions. In our clinical evaluation, since we focus on topological interaction pathways, we freeze the node feature mask to all-ones ($M_X = \mathbf{1}$) and evaluate the edge masks to extract structural subgraphs, utilizing stochastic edge mask sampling during the optimization phase and adding sparsity and entropy regularisation to encourage concise explanation subgraphs.
+GNNExplainer (Ying et al., 2019) learns a soft edge mask $M_E$ and a node feature mask $M_X$ per instance by optimising mutual information between the original prediction and the masked subgraph prediction. The soft masks are optimized using a continuous relaxation where the edge masks are treated as variational parameters. During optimization, GNNExplainer employs stochastic mask sampling, where edges and feature values are sampled according to the learned variational probabilities to compute expected predictions. In our clinical evaluation, since we focus on topological interaction pathways, we freeze the node feature mask to all-ones ($M_X = \mathbf{1}$) and evaluate the edge masks to extract structural subgraphs. 
+
+To ensure reproducibility, GNNExplainer is optimized for 500 epochs per instance with a learning rate of 0.01, employing an L1 sparsity regularization penalty ($\lambda_1 = 0.005$) and an entropy regularization penalty ($\lambda_2 = 0.01$). In Table 5.5.1, GNNExplainer achieves a Local Sparsity of $1.0000 \pm 0.0000$. This indicates that all learned continuous edge mask values fell entirely below the binarization extraction threshold ($\tau = 0.5$), effectively rendering the selected explanation empty. While this yields a mathematically "perfect" sparsity score, it means GNNExplainer fails to highlight any critical edges, which explains its near-zero Fidelity+ score ($<0.0001$) and limits its practical utility.
 
 ### 5.2.3 PGExplainer
 
@@ -23,17 +28,21 @@ PGExplainer (Luo et al., 2020) trains a parameterised MLP that predicts edge imp
 
 Specifically, the loss function of PGExplainer is defined as:
 $$L = L_{fidelity} + \lambda_1 L_{sparsity} + \lambda_2 L_{entropy}$$
-where $L_{fidelity}$ is the cross-entropy loss between the predictions of the original GNN and the GNN evaluated on the masked subgraph, $L_{sparsity}$ is the $L_1$ regularization penalty on the edge masks to enforce compactness, and $L_{entropy}$ is the element-wise entropy of the masks to push edge weights towards binary values (0 or 1).
+where $L_{fidelity}$ is the cross-entropy loss between the predictions of the original GNN and the GNN evaluated on the masked subgraph:
+$$L_{fidelity} = -\sum_{c=1}^C \left( y^{(c)} \log \hat{y}^{(c)}_{mask} + (1 - y^{(c)}) \log (1 - \hat{y}^{(c)}_{mask}) \right)$$
+and $L_{sparsity} = \sum_{e \in E_s} \sigma(M(e))$ is the L1 regularization penalty on the edge masks to enforce compactness, and $L_{entropy} = -\sum_{e \in E_s} \left[ \sigma(M(e)) \log \sigma(M(e)) + (1 - \sigma(M(e))) \log (1 - \sigma(M(e))) \right]$ is the element-wise entropy of the masks to push edge weights towards binary values (0 or 1), with $\lambda_1 = 0.05$ and $\lambda_2 = 0.01$.
 
 During training, the logged loss values can exhibit significant oscillations (e.g., fluctuating between negative values and large positive values) due to implementation-specific regularization terms and the dynamic trade-off between prediction fidelity and the soft sparsity/entropy penalties, which stabilize once the optimizer converges.
 
 ### 5.2.4 Knowledge-Enhanced Counterfactual (KEC)
 
-Our proposed method, KEC, identifies a counterfactual explanation by seeking a minimal set of edges whose removal changes the model's predicted drug–drug interaction. Unlike standard counterfactual search algorithms such as CF-GNNExplainer (Lucic et al., 2022) which optimize a continuous perturbation matrix over the entire adjacency matrix, KEC restricts its search space and enforces explicit biological constraints. Standard unconstrained search is computationally prohibitive on dense multi-relational graphs and often yields biologically implausible explanations (e.g., perturbing unrelated edges far from the target drugs). KEC addresses these limitations by:
+Our proposed method, KEC, identifies a counterfactual explanation by seeking a minimal set of edges whose removal changes the model's predicted drug–drug interaction. Unlike standard counterfactual search algorithms such as CF-GNNExplainer (Lucic et al., 2022) which optimize a continuous perturbation matrix over the entire adjacency matrix, KEC restricts its search space and enforces explicit biological constraints. Standard unconstrained search is computationally prohibitive on dense multi-relational graphs: optimizing a continuous mask over the entire global graph (size $V \times V$, which for our 22,347-node graph exceeds 499 million entries) requires $O(V^2)$ memory and GPU compute, leading to out-of-memory errors. It also yields biologically implausible explanations (e.g., perturbing unrelated edges far from the target drugs). KEC addresses these limitations by:
 1. **Local Graph Validity**: Restricting the search space to the local 2-hop neighborhood of the query drug pair ($d_1, d_2$), which guarantees that all perturbations remain localized.
 2. **Path-Based Pruning**: Restricting candidate edges to those lying on valid multi-hop paths connecting the target drugs through the protein interactome, encouraging biologically plausible pathways under graph constraints.
 
-Consequently, KEC does not seek a mathematically exact global minimum edge cut across the entire network (which is NP-hard and biologically nonsensical), but rather approximates a minimal counterfactual edge set within a biochemically constrained subspace.
+Consequently, KEC does not seek a mathematically exact global minimum edge cut across the entire network (which is NP-hard and biologically nonsensical), but rather approximates a minimal counterfactual edge set within a biochemically constrained subspace. 
+
+Because GNN neighborhood aggregation layers are non-linear and non-monotonic, deleting multiple edges sequentially can have non-additive joint impacts (i.e., the joint impact $I(\{e_1, e_2\})$ is not simply the sum of individual impacts $I(e_1) + I(e_2)$). Since our impact ranking function does not exhibit strict submodular properties, the greedy deletion heuristic acts as a local first-order approximation of a combinatorial cut-set problem rather than a guaranteed global minimum.
 
 To ensure computational feasibility, we implement a highly optimized search strategy:
 1. **Vectorized Subgraph Extraction**: The extraction of the local 2-hop neighborhood is fully vectorized in PyTorch, replacing CPU-GPU synchronization loops with parallel index operations.
@@ -41,7 +50,7 @@ To ensure computational feasibility, we implement a highly optimized search stra
 
 #### 5.2.4.1 KEC Search Heuristic
 
-To generate a counterfactual explanation for a query drug pair $(d_1, d_2)$ predicting a set of DDI side effects, KEC employs a Knowledge-Enhanced greedy search heuristic over a biologically constrained subspace. Rather than optimizing a continuous mask over the entire global graph (which is computationally expensive and yields non-local perturbations), KEC restricts and ranks perturbations using the following step-by-step procedure:
+To generate a counterfactual explanation for a query drug pair $(d_1, d_2)$ predicting a set of DDI side effects, KEC employs a Knowledge-Enhanced greedy search heuristic over a biologically constrained subspace. Rather than optimizing a continuous mask over the entire global graph, KEC restricts and ranks perturbations using the following step-by-step procedure:
 
 1. **Local Subgraph Extraction**: Extract the local 2-hop neighborhood $G^{(2)}$ surrounding the query nodes $\{d_1, d_2\}$ using vectorized indexing in PyTorch. Let $E^{(2)}$ denote the set of edges in this subgraph.
 2. **Candidate Edge Filtering**: Restrict candidate edges for deletion to a subset $E_{cand} \subseteq E^{(2)}$ consisting of: (a) direct drug-protein target bindings involving $d_1$ or $d_2$, and (b) protein-protein interactions (PPIs) along paths of length $\le 3$ connecting $d_1$ and $d_2$'s targets.
