@@ -25,11 +25,13 @@ from explanations.kec import get_k_hop_subgraph
 
 
 def evaluate_faithfulness():
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     with open("config.yaml", "r") as f:
         config = yaml.safe_load(f)
 
     graph_path = Path(config["data"]["graph_dir"]) / "hetero_data.pt"
-    data = torch.load(graph_path, weights_only=False)
+    data = torch.load(graph_path, map_location=device, weights_only=False)
     num_drugs = data['drug'].num_nodes
     num_proteins = data['protein'].num_nodes
     labels = data['drug', 'ddi', 'drug'].side_effect_label
@@ -45,8 +47,6 @@ def evaluate_faithfulness():
     p_edges_rev = torch.stack([p_edges[1], p_edges[0]], dim=0)
     
     hom_edge = torch.cat([dp_edges, pd_edges, p_edges, p_edges_rev], dim=1)
-
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # Load model
     model = HeteroGATDDI(
@@ -66,8 +66,8 @@ def evaluate_faithfulness():
 
     # Load explanations
     results_dir = Path("results")
-    all_explanations = torch.load(results_dir / "explanations.pt")
-    sample_pairs = torch.load(results_dir / "sample_pairs.pt")
+    all_explanations = torch.load(results_dir / "explanations.pt", map_location=device)
+    sample_pairs = torch.load(results_dir / "sample_pairs.pt", map_location=device)
 
     # Get full predictions
     with torch.no_grad():

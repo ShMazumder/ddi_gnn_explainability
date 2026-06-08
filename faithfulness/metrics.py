@@ -152,6 +152,11 @@ def check_lenient_connectivity_and_dist(expl_edges_mask, d1, d2, hom_edge):
     Check if the selected explanation edges are a subset of some d1-to-d2 path
     in the original graph (within 4 hops).
     """
+    # If the explanation is strictly connected, it is leniently connected by definition
+    is_strict_conn, strict_hop_dist = check_connectivity_and_dist(expl_edges_mask, d1, d2, hom_edge)
+    if is_strict_conn:
+        return True, strict_hop_dist
+
     if isinstance(expl_edges_mask, torch.Tensor):
         selected_indices = torch.where(expl_edges_mask > 0.5)[0].tolist()
     else:
@@ -165,6 +170,11 @@ def check_lenient_connectivity_and_dist(expl_edges_mask, d1, d2, hom_edge):
         u, v = hom_edge[0, idx].item(), hom_edge[1, idx].item()
         selected_edges_set.add(tuple(sorted((u, v))))
         
+    # Since any path of length <= 4 has at most 4 edges, if the explanation has more than 4 edges,
+    # it can never be a subset of a single path. This prevents DFS combinatorial explosion on large masks.
+    if len(selected_edges_set) > 4:
+        return False, -1
+        
     src = hom_edge[0].tolist()
     dst = hom_edge[1].tolist()
     
@@ -174,27 +184,62 @@ def check_lenient_connectivity_and_dist(expl_edges_mask, d1, d2, hom_edge):
     local_edge_indices = torch.where(local_subgraph_mask)[0].tolist()
     
     from collections import defaultdict
-    local_adj = defaultdict(list)
+    adj = defaultdict(list)
     for idx in local_edge_indices:
         u, v = src[idx], dst[idx]
-        local_adj[u].append((v, idx))
+        adj[u].append(v)
+        adj[v].append(u)
         
+    # Run BFS from d1 and d2 to find shortest distances in local graph
+    def bfs_dist(start):
+        dist = {start: 0}
+        queue = [start]
+        while queue:
+            curr = queue.pop(0)
+            d = dist[curr]
+            if d >= 4:
+                continue
+            for neighbor in adj[curr]:
+                if neighbor not in dist:
+                    dist[neighbor] = d + 1
+                    queue.append(neighbor)
+        return dist
+
+    dist_d1 = bfs_dist(d1)
+    dist_d2 = bfs_dist(d2)
+
+    # If d2 is not reachable from d1 in <= 4 steps, then no path exists
+    if d2 not in dist_d1 or dist_d1[d2] > 4:
+        return False, -1
+
+    # Filter local adjacency list to prune nodes and edges that cannot be on any path of length <= 4
+    pruned_adj = defaultdict(list)
+    for idx in local_edge_indices:
+        u, v = src[idx], dst[idx]
+        # Check if u and v are both within reach of d1 and d2, and the edge lies on some path of length <= 4
+        if u in dist_d1 and v in dist_d2 and dist_d1[u] + 1 + dist_d2[v] <= 4:
+            pruned_adj[u].append((v, idx))
+        if v in dist_d1 and u in dist_d2 and dist_d1[v] + 1 + dist_d2[u] <= 4:
+            pruned_adj[v].append((u, idx))
+            
     paths_found = []
     
     def dfs(curr, path_nodes, path_edges):
         if curr == d2:
             paths_found.append((list(path_nodes), list(path_edges)))
             return
-        if len(path_nodes) > 4: # max length 4 (k=2)
+        if len(path_nodes) > 4: # path length <= 4 edges (means <= 5 nodes)
             return
             
-        for neighbor, edge_idx in local_adj[curr]:
+        for neighbor, edge_idx in pruned_adj[curr]:
             if neighbor not in path_nodes:
-                path_nodes.append(neighbor)
-                path_edges.append(edge_idx)
-                dfs(neighbor, path_nodes, path_edges)
-                path_edges.pop()
-                path_nodes.pop()
+                # Check if this step is promising (can reach d2 within remaining hops)
+                if neighbor in dist_d2 and len(path_nodes) + dist_d2[neighbor] <= 5:
+                    path_nodes.append(neighbor)
+                    path_edges.append(edge_idx)
+                    dfs(neighbor, path_nodes, path_edges)
+                    path_edges.pop()
+                    path_nodes.pop()
                 
     dfs(d1, [d1], [])
     

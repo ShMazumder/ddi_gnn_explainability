@@ -41,6 +41,7 @@ def main():
     comparisons = [
         ("pgexplainer", "attention", "PGExplainer vs. Attention"),
         ("pgexplainer", "gnnexplainer", "PGExplainer vs. GNNExplainer"),
+        ("attention", "gnnexplainer", "Attention vs. GNNExplainer"),
         ("pgexplainer", "kec", "PGExplainer vs. KEC"),
         ("kec", "attention", "KEC vs. Attention"),
         ("kec", "gnnexplainer", "KEC vs. GNNExplainer")
