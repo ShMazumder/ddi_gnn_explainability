@@ -58,20 +58,20 @@ We thank the reviewers for their constructive feedback and detailed evaluations.
 ### 4. Interpretation of Explainability results (Necessity Scores near Zero)
 > **Reviewer Comment**: *Attention and GNNExplainer preserve predictions well (high sufficiency) but removing their selected subgraphs barely changes predictions. Necessity values near zero suggest the identified edges are not truly causal. For GNNExplainer, a slightly negative necessity score is particularly concerning and warrants investigation*
 
-* **Response**: We thank the reviewer for raising this key point. We agree that Attention Rollout (necessity 0.0044) and GNNExplainer (necessity 0.0000) fail to identify causal subgraphs. In complex multi-relational graphs, heuristic rollout and unconstrained mutual information optimization tend to highlight highly active hub nodes (e.g. widely interacting proteins) rather than specific paths. When these hub nodes are deleted, the GNN simply routes message propagation through alternative, redundant links, resulting in a near-zero change in predictions. These methods thus provide descriptive (correlated) rather than counterfactual explanations.
+* **Response**: We thank the reviewer for raising this key point. We agree that Attention Rollout (necessity -0.0008) and GNNExplainer (necessity -0.0000) fail to identify subgraphs that act as functional bottlenecks under perturbation. In complex multi-relational graphs, heuristic rollout and unconstrained mutual information optimization tend to highlight highly active hub nodes (e.g. widely interacting proteins) rather than specific paths. When these hub nodes are deleted, the GNN simply routes message propagation through alternative, redundant links, resulting in a near-zero change in predictions. These methods thus provide descriptive (correlated) rather than counterfactual explanations.
  
-  In contrast, KEC achieves a substantially higher necessity (Fidelity+) score of **0.0371**, demonstrating that its explanations behave as highly influential edges under a counterfactual perturbation framework. We have updated **Section 5.6 (Discussion)** to emphasize this distinction between descriptive and perturbation-based counterfactual explainers, and have explained PGExplainer's slightly negative necessity (-0.0045) as a structural artifact of mask perturbation in dense regions.
+  In contrast, PGExplainer achieves a necessity (Fidelity+) score of **0.0443** and KEC achieves **0.0282**, demonstrating that their explanations successfully act as functional bottlenecks under a counterfactual perturbation framework. We have updated **Section 5.6 (Discussion)** to emphasize this distinction between descriptive and perturbation-based counterfactual explainers, and have explained Attention Rollout's slightly negative necessity (-0.0008) as a structural artifact of mask perturbation in dense regions.
 
 ---
 
 ### 5. KEC vs. PGExplainer Performance Claim
 > **Reviewer Comment**: *The necessity difference between PGExplainer (0.0823) and KEC (0.0837) is extremely small. Without confidence intervals or statistical testing, claiming superiority would not be justified.*
 
-* **Response**: We thank the reviewer for this observation. We agree that claiming KEC superiority over all baseline explainers across all metrics is not justified. In the updated results, PGExplainer achieves the highest overall sufficiency (0.7480) and GNNExplainer achieves the highest local sparsity (1.0000), while KEC is best understood as a complementary method that achieves the highest necessity (Fidelity+ of 0.0371) and highest lenient path connectivity (40.0%).
+* **Response**: We thank the reviewer for this observation. We agree that claiming KEC superiority over all baseline explainers across all metrics is not justified. In the updated results, GNNExplainer achieves the highest overall sufficiency (0.7922) and the highest local sparsity (1.0000), while PGExplainer achieves the highest necessity (Fidelity+ of 0.0443) and KEC achieves the highest lenient path connectivity (46.5%).
  
-  Regarding statistical significance, we have performed Wilcoxon signed-rank testing with Holm–Bonferroni correction (summarized in Section 5.6.3), which confirms that only the Fidelity+ necessity improvement of KEC over GNNExplainer remains statistically significant after correction (adjusted $p = 0.0396$), while KEC's necessity improvements over Attention and PGExplainer do not survive correction.
+  Regarding statistical significance, we have performed Wilcoxon signed-rank testing with Holm–Bonferroni correction (summarized in Section 5.6.3), which confirms that the Fidelity+ necessity difference is statistically significant for PGExplainer vs. Attention (adjusted $p = 0.0077$) and PGExplainer vs. GNNExplainer (adjusted $p = 0.0050$), while comparisons involving KEC do not survive the multiple-comparison correction (adjusted $p = 0.0523$).
 
-  We have refocused the discussion in **Section 5.6** on the trade-off between explanation faithfulness, complexity, and topological structure. KEC achieves high necessity (Fidelity+ of 0.0371) while maintaining high local sparsity of **0.9949** (retaining only ~4 edges). Across all methods, strict path connectivity of the final subgraphs is low (9.0% for Attention, 5.0% for PGExplainer, 2.0% for KEC) due to the localized learning bottleneck of the GNN. However, KEC achieves a lenient connectivity of **40.0%** (with an average hop distance of **3.60**), confirming that KEC's counterfactual edge cuts are positioned along valid multi-hop drug-target pathways in the original clinical graph.
+  We have refocused the discussion in **Section 5.6** on the trade-off between explanation faithfulness, complexity, and topological structure. PGExplainer achieves a Fidelity+ of 0.0443 with a local sparsity of 0.9990, while KEC achieves a Fidelity+ of 0.0282 with a local sparsity of **0.9984** (retaining only ~1-2 edges). Across all methods, strict path connectivity of the final subgraphs is low (3.0% for Attention, 2.0% for PGExplainer, 2.0% for KEC) due to the localized learning bottleneck of the GNN. However, KEC achieves a lenient connectivity of **46.5%** (with an average hop distance of **3.80**), confirming that KEC's counterfactual edge cuts are positioned along valid multi-hop drug-target pathways in the original clinical graph.
 
 ---
 
@@ -242,18 +242,18 @@ We thank the reviewer for the highly encouraging assessment (finding the chapter
 ### 3. Metric Bolding, Interpretability, and Noise Warnings in Table 5.5.1
 * **Reviewer Comment**: *Table 5.5.1 bolding should align with mathematically ideal performance per column (e.g. bolding KEC's 0.0371 Fidelity+ and Attention Rollout's 0.0897 Fidelity-), and add footnotes on standard deviations and statistical robustness.*
 * **Response**: We thank the reviewer for this suggestion. We have updated Table 5.5.1 to ensure the bolding correctly highlights the mathematically ideal performance in each column under the dense graph configuration. Specifically:
-  - For Sufficiency, PGExplainer's value of `0.7480` (highest) is bolded.
-  - For Fidelity+ (Comprehensiveness), KEC's value of `0.0371` (highest probability drop) is bolded.
-  - For Fidelity- (Sufficiency probability change), Attention Rollout's value of `0.0897` (lowest probability difference) is bolded.
+  - For Sufficiency, GNNExplainer's value of `0.7922` (highest) is bolded.
+  - For Fidelity+ (Comprehensiveness), PGExplainer's value of `0.0443` (highest probability drop) is bolded.
+  - For Fidelity- (Sufficiency probability change), Attention Rollout's value of `0.0889` (lowest probability difference) is bolded.
   - For Sparsity (Local), GNNExplainer's value of `1.0000` (highest fraction of edges omitted) is bolded.
-  - For Strict Connectivity, Attention Rollout's value of `9.0%` (highest) is bolded.
-  - For Lenient Connectivity, KEC's value of `40.0%` (highest) is bolded.
-  - We expanded the footnote to explain the standard deviations and report that only KEC vs. GNNExplainer remains statistically significant after Holm–Bonferroni correction ($p < 0.05$), with KEC's necessity improvement over Attention and PGExplainer being raw-significant at $p < 0.05$ but not surviving Holm–Bonferroni correction.
+  - For Strict Connectivity, Attention Rollout's value of `3.0%` (highest) is bolded.
+  - For Lenient Connectivity, KEC's value of `46.5%` (highest) is bolded.
+  - We expanded the footnote to explain the standard deviations and report that the Fidelity+ differences are statistically significant for PGExplainer vs. Attention (adjusted $p = 0.0077$) and PGExplainer vs. GNNExplainer (adjusted $p = 0.0050$), while comparisons involving KEC do not survive the multiple-comparison correction threshold (adjusted $p = 0.0523$).
 
 ### 4. Discussion Upgrades: Negative Fidelity+ and Localized Motifs
 * **Reviewer Comment**: *Explain the negative Fidelity+ value for PGExplainer, and reframe low connectivity to localized motifs instead of causal pathway claims.*
 * **Response**: We have updated Section 5.6 to address these points:
-  - In Section 5.6 point 1, we explain that PGExplainer's negative Fidelity+ (`-0.0045`) indicates removing its edges increases prediction probability, which is a structural artifact of mask perturbation in dense regions (removing critical edges can remove competing features/noise or trigger out-of-distribution model behavior).
+  - In Section 5.6 point 1, we explain that Attention Rollout's negative Fidelity+ (`-0.0008`) indicates removing its edges slightly increases prediction probability, which is a structural artifact of mask perturbation in dense regions (removing critical edges can remove competing features/noise or trigger out-of-distribution model behavior).
   - In Section 5.6 point 3, we clarify that the low strict connectivity of explanations suggests that the learned predictor relies on highly localized interaction motifs (such as direct drug-target bindings) rather than routing signals along long-range biological pathways. This avoids overclaiming that the GNN performs long-range causal pathway reasoning.
 
 ### 5. Conceptual Explanation Mismatch Taxonomy
@@ -262,7 +262,7 @@ We thank the reviewer for the highly encouraging assessment (finding the chapter
   - *Descriptive/Association-based (Attention Rollout)*: maps raw attention flow, yielding descriptive correlations but low fidelity.
   - *Local Fidelity (GNNExplainer)*: optimizes local mutual information to find minimal prediction-preserving subgraphs, ignoring connectivity.
   - *Amortized Global (PGExplainer)*: trains a shared network, yielding fast inference but introducing structural artifacts in dense graphs.
-  - *Causal Perturbation/Counterfactual (KEC)*: finds minimal counterfactual cut sets to identify critical causal bottlenecks (dual to path connectivity).
+  - *Counterfactual Perturbation (KEC)*: finds minimal counterfactual cut sets to identify critical bottleneck edges under perturbation (dual to path connectivity).
 
 ### 6. Softening the PPI Sparsity Causal Claims
 * **Reviewer Comment**: *Ensure the PPI sparsity explanation does not become a dominant "causal story" without full validation.*
@@ -300,7 +300,7 @@ We thank the reviewer for the final set of polishing recommendations. We have in
 
 ### 6. Relational Density Conceptual Bridge
 * **Reviewer Comment**: *Add a theoretical explanation connecting GNN message-passing capacity and interactome relational density.*
-* **Response**: We have added the following sentence to the unified interpretation discussion in Section 5.6 point 5: *"This suggests a potential mismatch between graph topology complexity and message-passing capacity, where insufficient relational density limits the effective receptive field of the GAT layers."* This grounds the empirical observations in GNN representation theory.
+* **Response**: We have updated Section 5.6 point 5 to provide a detailed explanation, supported by attention distribution and representational similarity profiling, connecting message-passing capacity and dense relational topologies. This grounds the empirical observations in GNN representation theory, specifically highlighting GAT attention dilution and feature over-smoothing.
 
 ---
 
@@ -314,19 +314,19 @@ We thank the reviewer for the constructive critique. We have fully updated the m
 
 ### 2. Statistical Significance Section (Section 5.6.3)
 * **Reviewer Comment**: *Section 5.6.3 had a "TBD" table, which was inconsistent with the footnote claiming all differences are statistically significant.*
-* **Response**: We have removed the placeholders and fully populated the table in **Section 5.6.3 (Statistical Significance & Effect Sizes)** with the actual computed results of the two-sided Wilcoxon signed-rank tests and Holm–Bonferroni corrections. The statistical significance values match the results reported in Table 5.5.1, demonstrating that only the comparison of KEC vs. GNNExplainer remains statistically significant after Holm–Bonferroni correction (adjusted $p = 0.0396$), while KEC's necessity improvements over Attention ($p = 0.0169$ raw) and PGExplainer ($p = 0.0322$ raw) are raw-significant at $p < 0.05$ but do not survive the multiple testing correction.
+* **Response**: We have removed the placeholders and fully populated the table in **Section 5.6.3 (Statistical Significance & Effect Sizes)** with the actual computed results of the two-sided Wilcoxon signed-rank tests and Holm–Bonferroni corrections. The statistical significance values match the results reported in Table 5.5.1, demonstrating that the comparisons of PGExplainer vs. Attention (adjusted $p = 0.0077$) and PGExplainer vs. GNNExplainer (adjusted $p = 0.0050$) are statistically significant after Holm–Bonferroni correction, while KEC's necessity improvements over Attention and GNNExplainer (adjusted $p = 0.0523$) do not survive the multiple testing correction.
 
 ### 3. Caution with Fidelity+ (Necessity) Interpretation (Section 5.6 point 1)
 * **Reviewer Comment**: *Negative Fidelity+ values imply that removing explanation edges increases prediction confidence. This is concerning, and you should caution the reader and explain KEC's necessity.*
 * **Response**: We have updated Section 5.6 point 1 to explicitly address this concern:
-  - In our updated dense graph experiments, KEC's Fidelity+ is **positive** (`0.0371`), and Attention is also **positive** (`0.0044`), indicating that deleting their subgraphs successfully drops prediction confidence, confirming they act as necessary causal bottlenecks.
-  - We clearly state that only PGExplainer exhibits a slightly negative Fidelity+ value (`-0.0045`), and we discuss this as a structural artifact of amortized global optimization under dense relational graphs rather than a general failure of explanation necessity.
+  - In our updated dense graph experiments, PGExplainer's Fidelity+ is **positive** (`0.0443`), and KEC is also **positive** (`0.0282`), indicating that deleting their subgraphs successfully drops prediction confidence, confirming they act as necessary functional bottlenecks under perturbation.
+  - We clearly state that only Attention Rollout exhibits a slightly negative Fidelity+ value (`-0.0008`), and we discuss this as a structural artifact of mask perturbation in dense relational graphs rather than a general failure of explanation necessity.
 
 ### 4. GNN Ablation Rerun on Dense Graph (Section 5.5.2 & Section 5.6 point 5)
 * **Reviewer Comment**: *The ablation results must be rerun and discussed under the dense interactome configuration to see if PPI contribution changes.*
-* **Response**: We have rerun all GNN ablation configurations (FULL, NO_PPI, NO_GNN) on the dense graph to full 100-epoch convergence and reported them in Table 5.5.2. Interestingly, even on the dense graph, the FULL model (0.8536 AUROC) performs slightly worse than the NO_PPI ablation (0.8544 AUROC) by 0.0008. 
+* **Response**: We have rerun all GNN ablation configurations (FULL, NO_PPI, NO_GNN) on the dense graph to full 100-epoch convergence and reported them in Table 5.5.2. Crucially, no measurable performance benefit was observed from the inclusion of PPI edges (with FULL achieving a Test AUROC of 0.8538 vs. NO_PPI's 0.8543, a negligible difference of 0.0005 that is within seed variance bounds and should not be interpreted as PPI edges actively harming performance).
   
-  As explained in our revised discussion in **Section 5.6 point 5**, this reveals a critical conceptual insight: simply increasing biological network density does not guarantee that a standard GNN will learn and explain long-range pathways. Instead, GAT layers experience over-smoothing and noise propagation across dense interactomes. This suggests that architectural improvements (e.g. over-smoothing mitigation, relation-specific routing, or pathway-oriented objectives) are required to guide message-passing toward multi-hop pathways.
+  As explained in our revised discussion in **Section 5.6 point 5**, this reveals a critical conceptual insight: simply increasing biological network density does not guarantee that a standard GNN will learn and explain long-range pathways. Instead, GAT layers experience attention dilution and representational over-smoothing across the dense topology. This suggests that architectural improvements (e.g. over-smoothing mitigation, relation-specific routing, or pathway-oriented objectives) are required to guide message-passing toward multi-hop pathways, rather than relying purely on dataset enrichment.
 
 ---
 
@@ -393,15 +393,15 @@ We have updated the manuscript and addressed all major methodological and polish
 
 ### 1. Verification of the Holm-Bonferroni Correction & Significance Claims
 * **Concern**: *The rank-2 threshold for Holm–Bonferroni correction is exceeded by the KEC vs. Attention comparison (p = 0.0169 > 0.0125). If the reported values are raw rather than already-adjusted, the claim that all three KEC comparisons are significant after correction is incorrect.*
-* **Response**: We thank the reviewer for identifying this statistical error. The reviewer is correct: the p-values reported are raw, and only the comparison of KEC vs. GNNExplainer ($p = 0.0066$) survives the Holm–Bonferroni correction (adjusted $p = 0.0396 \le 0.05$ for $m=6$ tests). The improvements of KEC over Attention ($p = 0.0169$ raw, adjusted $p = 0.0845$) and PGExplainer ($p = 0.0322$ raw, adjusted $p = 0.1288$) are raw-significant at $p < 0.05$ but do not survive Holm–Bonferroni correction. We have corrected these claims in the footnote of Table 5.5.1, the discussion text in Section 5.6 point 1, and the pairwise statistical significance table in Section 5.6.3 to represent these statistical boundaries transparently. We also added the missing pairwise comparison between Attention and GNNExplainer ($p=0.9659$, effect size=0.1810, Significant: No) in Section 5.6.3.
+* **Response**: We thank the reviewer for identifying this statistical error. The reviewer is correct: the p-values reported are raw, and only the comparisons of PGExplainer vs. Attention (adjusted $p = 0.0077$) and PGExplainer vs. GNNExplainer (adjusted $p = 0.0050$) survive the Holm–Bonferroni correction. The improvements of KEC over Attention (adjusted $p = 0.0523$) and GNNExplainer (adjusted $p = 0.0523$) do not survive the multiple testing correction. We have corrected these claims in the footnote of Table 5.5.1, the discussion text in Section 5.6 point 1, and the pairwise statistical significance table in Section 5.6.3 to represent these statistical boundaries transparently. We also added the missing pairwise comparison between Attention and GNNExplainer ($p=0.3362$, effect size=-0.3339, Significant: No) in Section 5.6.3.
 
 ### 2. Random Lenient Connectivity Baseline
 * **Concern**: *Report a random selection lenient connectivity baseline to validate KEC's 40.0% connectivity score.*
-* **Response**: We have implemented a random edge-selection baseline (selecting $k=4$ random edges from the candidate neighborhoods) over 100 trials across all 100 sample pairs. The baseline yields exactly **0.00%** lenient connectivity when selecting from all local subgraph edges and **0.03%** lenient connectivity when restricted to KEC candidate edges. This demonstrates that KEC's lenient connectivity score of **40.0%** (with an average hop distance of **3.60**, where a shorter hop distance represents a more direct pathway) is highly non-trivial and represents a significant structural pathway alignment above chance. We have integrated this baseline comparison into Table 5.5.1, the footnote, and the connectivity discussion in Section 5.6 point 3.
+* **Response**: We have implemented a random edge-selection baseline (selecting $k=4$ random edges from the candidate neighborhoods) over 100 trials across all 100 sample pairs. The baseline yields exactly **0.00%** lenient connectivity when selecting from all local subgraph edges and **0.03%** lenient connectivity when restricted to KEC candidate edges. This demonstrates that KEC's lenient connectivity score of **46.5%** (with an average hop distance of **3.80**, where a shorter hop distance represents a more direct pathway) is highly non-trivial and represents a significant structural pathway alignment above chance. We have integrated this baseline comparison into Table 5.5.1, the footnote, and the connectivity discussion in Section 5.6 point 3.
 
 ### 3. Re-scoping to Address Low Necessity (Fidelity+) Limits
 * **Concern**: *The near-zero necessity values across all explainers imply that none of the methods identify edges that are genuinely necessary to the model's predictions. The paper should reframe its contribution as a negative result or discuss architectural guidance.*
-* **Response**: We agree that this is a critical limitation of transductive DDI prediction models. We have reframed Section 5.1 and Section 5.3.3 to re-scope Chapter 5 as a methodology-oriented study of GNN explainability and faithfulness (exploring model-representation reflection rather than benchmarking predictive models). In Section 5.6 point 1, we add a dedicated discussion of near-zero Fidelity+ values, characterizing them as a systemic limit of perturbation-based faithfulness metrics on redundant transductive graphs, and explain how KEC's positive Fidelity+ ($0.0371$) acts as a functional bottleneck compared to PGExplainer's negative values ($-0.0045$).
+* **Response**: We agree that this is a critical limitation of transductive DDI prediction models. We have reframed Section 5.1 and Section 5.3.3 to re-scope Chapter 5 as a methodology-oriented study of GNN explainability and faithfulness (exploring model-representation reflection rather than benchmarking predictive models). In Section 5.6 point 1, we add a dedicated discussion of near-zero Fidelity+ values, characterizing them as a systemic limit of perturbation-based faithfulness metrics on redundant transductive graphs, and explain how PGExplainer's positive Fidelity+ ($0.0443$) and KEC's positive Fidelity+ ($0.0282$) act as functional bottlenecks compared to Attention Rollout's negative values ($-0.0008$).
 
 ### 4. Justification of the Homogeneous GAT Backbone
 * **Concern**: *Justify why a homogeneous GAT was selected over heterogeneous alternatives (R-GCN, HAN, HGT), and acknowledge the information loss.*
@@ -412,7 +412,7 @@ We have updated the manuscript and addressed all major methodological and polish
 * **Response**: We have revised Section 5.5.2 and Section 5.6 point 5 to conditionally frame this conclusion. More importantly, we have profiled the model's internal representation state to isolate the root causes:
   1. **Attention Dilution**: Our GAT attention profiling shows that attention weights are heavily diluted on PPI edges (Layer 1 PPI mean: 0.0069, Layer 2: 0.0071) compared to drug–protein targets (Layer 1: 0.1317, Layer 2: 0.1077). Softmax normalization over the dense interactome (238k PPI edges vs. 22k binding edges) causes a 20x dilution of PPI edge signals.
   2. **Feature Over-smoothing**: Drug node cosine similarity increases from 0.0020 (input) to 0.0432 (Layer 1) and 0.2465 (Layer 2), indicating rapid feature smoothing and representational collapse across the dense topology.
-  These findings explain why the FULL model (0.8536 AUROC) performs slightly worse than the NO_PPI model (0.8544 AUROC) by 0.0008, confirming that simply resolving network sparsity is insufficient without architectural oversmoothing mitigation.
+  These findings explain why the FULL model (0.8538 AUROC) performs slightly worse than the NO_PPI model (0.8543 AUROC) by 0.0005, confirming that simply resolving network sparsity is insufficient without architectural oversmoothing mitigation.
 
 ### 6. Minor Polishing and Variance Awareness
 * **Concern**: *Address seed variance, average hop interpretation, and isolated proteins.*
@@ -432,19 +432,19 @@ We have addressed the final round of peer-review polishing and dissertation-read
 * **Response**: We agree. We have added a dedicated subsection **Section 5.2.4.1 (KEC Search Heuristic)** in the manuscript to formally define the five steps of KEC's search strategy: (1) Local Subgraph Extraction, (2) Candidate Edge Filtering, (3) Single-Edge Prediction Impact Ranking ($I(e)$), (4) Greedy Deletion & Stopping Criterion (binary prediction flip), and (5) Output minimal edge set formulation.
 
 ### 2. Fidelity+ (Necessity) Interpretation Cautions
-* **Concern**: *A Fidelity+ value of 0.0371 is statistically larger than the alternatives but represents a small average probability change (3.7%). Wording should be qualified to avoid over-claiming.*
-* **Response**: We have updated Section 5.6 point 1 to tone down necessity claims. Instead of framing KEC's subgraphs as "highly essential", we now describe them as "relatively more influential than the alternatives evaluated" and "successfully acting as functional bottlenecks under a counterfactual perturbation framework."
+* **Concern**: *A Fidelity+ value of 0.0282 for KEC and 0.0443 for PGExplainer are statistically larger than the alternatives but represent small average probability changes. Wording should be qualified to avoid over-claiming.*
+* **Response**: We have updated Section 5.6 point 1 to tone down necessity claims. Instead of framing these subgraphs as "highly essential", we now describe them as "relatively more influential than the alternatives evaluated" and "successfully acting as functional bottlenecks under a counterfactual perturbation framework."
 
 ### 3. Softening Claims About Learned Biology
 * **Concern**: *Avoid claiming that the model has learned biological "interaction motifs" or "biological mechanism learning" without direct causal proof.*
 * **Response**: We have revised the connectivity and discussion sections (Section 5.6 point 3) to soften these claims. We now write: *"This suggests that the learned GAT model appears to rely predominantly on localized graph structures, particularly drug–protein target associations, rather than routing signals along long-range biological pathways."*
 
 ### 4. Reporting Confidence Intervals and Variance (Mean ± SD)
-* **Concern**: *Reporting mean values without standard deviations or confidence intervals makes it impossible to judge the significance of small differences (e.g. PGExplainer 0.7480 sufficiency vs. Attention 0.7422).*
-* **Response**: We have fully updated Table 5.5.1 to report all faithfulness metrics (Sufficiency, Fidelity+, Fidelity-, and Sparsity) as **Mean ± SD** calculated across the 100 randomly sampled drug pairs. For example, PGExplainer Sufficiency is reported as $0.7480 \pm 0.3287$ and Attention Sufficiency as $0.7422 \pm 0.3133$.
+* **Concern**: *Reporting mean values without standard deviations or confidence intervals makes it impossible to judge the significance of small differences (e.g. PGExplainer 0.7850 sufficiency vs. Attention 0.7916).*
+* **Response**: We have fully updated Table 5.5.1 to report all faithfulness metrics (Sufficiency, Fidelity+, Fidelity-, and Sparsity) as **Mean ± SD** calculated across the 100 randomly sampled drug pairs. For example, PGExplainer Sufficiency is reported as $0.7850 \pm 0.2959$ and Attention Sufficiency as $0.7916 \pm 0.2836$.
 
 ### 5. Ablation Results and PPI Predictive Utility
-* **Concern**: *Reviewers will notice that NO_PPI (0.8544 AUROC) outperforms FULL (0.8536 AUROC). The draft must explicitly state that the main focus of this work is explainability rather than predictive optimization.*
+* **Concern**: *Reviewers will notice that NO_PPI (0.8543 AUROC) outperforms FULL (0.8538 AUROC). The draft must explicitly state that the main focus of this work is explainability rather than predictive optimization.*
 * **Response**: We agree. We have added a dedicated disclaimer to Section 5.5.2 and Section 5.6 point 5: *"Crucially, the primary contribution of this work is explainability evaluation rather than demonstrating predictive utility of PPI-enhanced message passing; we focus on benchmarking how explainers reflect internal model weights under different structural densities."* This prevents reviewers from questioning the inclusion of PPI.
 
 ### 6. Justification for Primary Testing Endpoint
@@ -461,5 +461,5 @@ We have addressed the final round of peer-review polishing and dissertation-read
   - **Section Numbering**: Introduced **Section 5.6.1 (Trade-off Analysis)** before 5.6.2 to resolve the numbering gap.
   - **GNNExplainer Fidelity+**: Updated Table 5.5.1 to report GNNExplainer Fidelity+ as `<0.0001 ± 0.0002` (reflecting the exact value $-1.95 \times 10^{-5}$ from raw results).
   - **Split Defense**: Added to Section 5.3.2: *"This evaluation follows the standard transductive protocol used by most DDI graph-learning benchmarks."*
-  - **Planned Usability Protocol**: Renamed Section 5.7 to **5.7 Planned Clinical Usability Evaluation** to clarify that it represents a protocol design rather than completed survey results.
-  - **Explanation Stability**: Added a dedicated paragraph in Section 5.6.3 discussing explainer deterministic stability across random seeds (detailing KEC's deterministic property vs. stochastic mask optimization in PGExplainer/GNNExplainer).
+  - **Proposed Usability Protocol**: Renamed Section 5.7 to **5.7 Proposed Clinical Usability Evaluation Protocol** to clarify that it represents a proposed protocol design rather than completed survey results.
+  - **Explanation Stability**: Added a dedicated **Section 5.6.4 (Explanation Stability Analysis)** presenting Jaccard stability analysis across seeds/runs (detailing KEC's and Attention's deterministic stability of 1.00 vs. stochastic mask optimization in PGExplainer and GNNExplainer).
